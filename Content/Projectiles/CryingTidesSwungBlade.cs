@@ -18,15 +18,15 @@ namespace KyoMod.Content.Projectiles
 		public int ComboState => (int)Projectile.ai[0];
 		public Player Owner => Main.player[Projectile.owner];
 
-		private const float NormalMaxTime = 35f;
-		private const float SpinMaxTime = 50f;
+		private const float NormalMaxTime = 25f;
+		private const float SpinMaxTime = 40f;
 		private float ActualMaxTime => ComboState == 2 ? SpinMaxTime : NormalMaxTime;
 
-		private const float SwingWidth = MathHelper.PiOver2 * 1.5f; // 135 degree arc
-		private const float HoldDistance = 35f;
+		private const float SwingWidth = MathHelper.PiOver2 * 2.2f; // 135 degree arc
+		private const float HoldDistance = 5f;
 
 		private float Timer => ActualMaxTime - Projectile.timeLeft;
-		private float SwingRatio => MathHelper.Clamp(Timer / ActualMaxTime, 0f, 1f);
+		private float SwingRatio => MathHelper.Clamp(Timer / (ActualMaxTime - 1f), 0f, 1f);
 
 		public override void SetStaticDefaults()
 		{
@@ -58,13 +58,8 @@ namespace KyoMod.Content.Projectiles
 				18f, ref collisionPoint);
 		}
 
-		// Cubic ease-in-out for a weighty swing feel
-		private static float EaseInOut(float t)
-		{
-			if (t < 0.5f)
-				return 4f * t * t * t;
-			return 1f - (float)Math.Pow(-2f * t + 2f, 3) / 2f;
-		}
+		// Quintic ease-in: very slow start that ramps up extremely fast
+		private static float EaseIn(float t) => t * t * t * t; // More t multiplications = more easing
 
 		public override void AI()
 		{
@@ -80,7 +75,7 @@ namespace KyoMod.Content.Projectiles
 			Projectile.velocity = Vector2.Zero;
 
 			float baseAngle = direction.ToRotation();
-			float eased = EaseInOut(SwingRatio);
+			float eased = EaseIn(SwingRatio);
 
 			switch (ComboState)
 			{
@@ -98,8 +93,9 @@ namespace KyoMod.Content.Projectiles
 						eased);
 					break;
 
-				case 2: // Spin: full clockwise 360°
-					Projectile.rotation = baseAngle + MathHelper.TwoPi * eased;
+				case 2: // Spin: starts 90° above aim, sweeps full 360° (clockwise right, counter-clockwise left)
+					float spinStart = baseAngle - MathHelper.PiOver2 * Owner.direction;
+					Projectile.rotation = spinStart + MathHelper.TwoPi * eased * Owner.direction;
 					break;
 			}
 

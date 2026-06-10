@@ -11,6 +11,10 @@ namespace KyoMod.Content.Items
 	public class CryingTides : ModItem
 	{
 		public int Combo = 0;
+		private int comboCooldown = 0;
+
+		private const int SwingCooldown = 15; // pause after swings 1 and 2
+		private const int SpinCooldown = 30;  // longer pause after the spin
 
 		public override void SetDefaults()
 		{
@@ -32,15 +36,30 @@ namespace KyoMod.Content.Items
 			Item.shootSpeed = 12f;
 		}
 
+		public override void HoldItem(Player player)
+		{
+			// Only tick down after the swing animation has finished
+			bool swingActive = Main.projectile.Any(p => p.active && p.owner == player.whoAmI && p.type == ModContent.ProjectileType<CryingTidesSwungBlade>());
+			if (!swingActive && comboCooldown > 0)
+				comboCooldown--;
+		}
+
 		public override bool CanUseItem(Player player)
 		{
+			if (comboCooldown > 0)
+				return false;
+
 			return !Main.projectile.Any(p => p.active && p.owner == player.whoAmI && p.type == ModContent.ProjectileType<CryingTidesSwungBlade>());
 		}
 
 		public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
 		{
 			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungBlade>(), damage, knockback, player.whoAmI, Combo);
+
+			int prevCombo = Combo;
 			Combo = (Combo + 1) % 3;
+			comboCooldown = prevCombo == 2 ? SpinCooldown : SwingCooldown;
+
 			return false;
 		}
 
