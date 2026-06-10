@@ -2,6 +2,11 @@
 # Please read https://github.com/tModLoader/tModLoader/wiki/Localization to learn more about localization and these files.
 
 Items: {
+	CryingTides: {
+		DisplayName: Crying Tides
+		Tooltip: A blade that weeps with the rhythm of the sea
+	}
+
 	TestSword: {
 		DisplayName: Test Sword
 		Tooltip:
@@ -13,4 +18,7 @@ Items: {
 	}
 }
 
-Projectiles.TestSwordArrow.DisplayName: Test Sword Arrow
+Projectiles: {
+	TestSwordArrow.DisplayName: Test Sword Arrow
+	CryingTidesSwungBlade.DisplayName: Crying Tides Swung Blade
+}
