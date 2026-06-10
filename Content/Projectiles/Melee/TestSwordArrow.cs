@@ -4,7 +4,7 @@ using Terraria.Audio;
 using Terraria.ID;
 using Terraria.ModLoader;
 
-namespace KyoMod.Content.Projectiles
+namespace KyoMod.Content.Projectiles.Melee
 {
 	public class TestSwordArrow : ModProjectile
 	{

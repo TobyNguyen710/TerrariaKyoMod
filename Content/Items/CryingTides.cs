@@ -1,5 +1,5 @@
 using System.Linq;
-using KyoMod.Content.Projectiles;
+using KyoMod.Content.Projectiles.Melee;
 using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.DataStructures;
