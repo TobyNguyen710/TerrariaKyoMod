@@ -7,6 +7,20 @@ Items: {
 		Tooltip: A blade that weeps with the rhythm of the sea
 	}
 
+	CryingTidesPostEoC: {
+		DisplayName: Crying Tides
+		Tooltip: A blade that weeps with the rhythm of the sea
+	}
+
+	CryingTidesPostEvilBoss: {
+		DisplayName: Crying Tides
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Right-click to unleash a temporal slow pulse
+			'''
+	}
+
 	TestSword: {
 		DisplayName: Test Sword
 		Tooltip:

@@ -1,0 +1,32 @@
+using Terraria;
+using Terraria.ID;
+
+namespace KyoMod.Content.Items.Melee.CryingTides
+{
+	public class CryingTidesPostEoC : CryingTidesBase
+	{
+		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
+
+		public override void SetDefaults()
+		{
+			base.SetDefaults();
+			Item.damage = 110;
+			Item.rare = ItemRarityID.Green;
+			Item.value = Item.buyPrice(gold: 5);
+		}
+
+		public override void AddRecipes()
+		{
+			CreateRecipe()
+				.AddIngredient<CryingTides>()
+				.AddIngredient(ItemID.CrimtaneBar, 12)
+				.AddTile(TileID.Anvils)
+				.Register();
+			CreateRecipe()
+				.AddIngredient<CryingTides>()
+				.AddIngredient(ItemID.DemoniteBar, 12)
+				.AddTile(TileID.Anvils)
+				.Register();
+		}
+	}
+}

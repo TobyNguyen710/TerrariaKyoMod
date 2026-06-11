@@ -3,7 +3,7 @@ using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
 
-namespace KyoMod.Content.Items
+namespace KyoMod.Content.Items.Melee
 {
 	// This is a basic item template.
 	// Please see tModLoader's ExampleMod for every other example:

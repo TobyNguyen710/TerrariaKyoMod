@@ -10,7 +10,7 @@ namespace KyoMod.Content.Projectiles.Melee
 {
 	public class CryingTidesSwungBlade : ModProjectile
 	{
-		public override string Texture => "KyoMod/Content/Items/CryingTides";
+		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
 
 		private bool initialized = false;
 		private Vector2 direction = Vector2.Zero;
@@ -112,7 +112,7 @@ namespace KyoMod.Content.Projectiles.Melee
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			Texture2D sword = ModContent.Request<Texture2D>("KyoMod/Content/Items/CryingTides").Value;
+			Texture2D sword = ModContent.Request<Texture2D>("KyoMod/Content/Items/Melee/CryingTides/CryingTides").Value;
 
 			SpriteEffects flip = Owner.direction < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 			float extraAngle = Owner.direction < 0 ? MathHelper.PiOver2 : 0f;
