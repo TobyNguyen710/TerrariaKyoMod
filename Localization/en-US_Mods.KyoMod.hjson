@@ -21,4 +21,12 @@ Items: {
 Projectiles: {
 	TestSwordArrow.DisplayName: Test Sword Arrow
 	CryingTidesSwungBlade.DisplayName: Crying Tides Swung Blade
+	SpectroSlowPulse.DisplayName: Spectro Slow Pulse
+}
+
+Buffs: {
+	TemporalSlow: {
+		DisplayName: Temporal Slow
+		Description: Time itself resists your movement
+	}
 }
