@@ -16,7 +16,7 @@ namespace KyoMod.Content.Items
 
 		private const int SwingCooldown = 15;
 		private const int SpinCooldown = 30;
-		private const int SkillCooldownMax = 480; // 8 seconds
+		private const int SkillCooldownMax = 80; // 8 seconds
 
 		public override void SetDefaults()
 		{

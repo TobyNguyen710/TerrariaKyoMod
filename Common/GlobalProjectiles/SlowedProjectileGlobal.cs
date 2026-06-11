@@ -10,19 +10,25 @@ namespace KyoMod.Common.GlobalProjectiles
 
 		public bool IsSlowed { get; private set; }
 		private int slowTimer;
-		private float originalSpeed;
-		private float slowedSpeed;
+		private Vector2 prevVelocity;
+
+		private const float SlowFactor = 0.35f;
 
 		public void ApplySlow(Projectile projectile, int duration)
 		{
-			float len = projectile.velocity.Length();
-			if (len < 0.1f) return;
+			if (projectile.velocity.LengthSquared() < 0.01f) return;
 
-			originalSpeed = len;
-			slowedSpeed = len * 0.25f;
 			IsSlowed = true;
 			slowTimer = duration;
-			projectile.velocity = projectile.velocity.SafeNormalize(Vector2.Zero) * slowedSpeed;
+			projectile.velocity *= SlowFactor;
+			projectile.timeLeft = (int)(projectile.timeLeft * (1f / SlowFactor));
+		}
+
+		public override bool PreAI(Projectile projectile)
+		{
+			if (IsSlowed)
+				prevVelocity = projectile.velocity;
+			return true;
 		}
 
 		public override void PostAI(Projectile projectile)
@@ -32,13 +38,20 @@ namespace KyoMod.Common.GlobalProjectiles
 			if (slowTimer > 0)
 			{
 				slowTimer--;
-				// Re-clamp each tick so homing or re-accelerating projectiles stay slow
-				if (projectile.velocity.LengthSquared() > slowedSpeed * slowedSpeed)
-					projectile.velocity = projectile.velocity.SafeNormalize(Vector2.Zero) * slowedSpeed;
+
+				// Scale the velocity delta from AI this tick.
+				// X uses SlowFactor: horizontal forces (homing, bounces) slow proportionally.
+				// Y uses SlowFactor² to compensate for the extended timeLeft — otherwise gravity
+				// accumulates over 4x longer and the arc drops 4x more than normal.
+				Vector2 delta = projectile.velocity - prevVelocity;
+				projectile.velocity = new Vector2(
+					prevVelocity.X + delta.X * SlowFactor,
+					prevVelocity.Y + delta.Y * SlowFactor * SlowFactor
+				);
+
 			}
 			else
 			{
-				projectile.velocity = projectile.velocity.SafeNormalize(Vector2.Zero) * originalSpeed;
 				IsSlowed = false;
 			}
 		}

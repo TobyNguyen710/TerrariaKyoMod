@@ -76,7 +76,7 @@ namespace KyoMod.Content.Projectiles.Melee
 				float angle = MathHelper.TwoPi * i / dustCount;
 				Vector2 pos = Projectile.Center + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * radius;
 
-				Dust d = Dust.NewDustDirect(pos - new Vector2(4f), 4, 4, DustID.MagicMirror);
+				Dust d = Dust.NewDustDirect(pos - new Vector2(4f), 4, 4, DustID.GoldFlame);
 				d.noGravity = true;
 				d.velocity = Vector2.Zero;
 				d.scale = 0.8f + alpha * 0.6f;
@@ -92,11 +92,10 @@ namespace KyoMod.Content.Projectiles.Melee
 					float r = radius * Main.rand.NextFloat(0.85f, 1.15f);
 					Vector2 pos = Projectile.Center + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * r;
 
-					Dust d = Dust.NewDustDirect(pos - new Vector2(2f), 2, 2, DustID.MagicMirror);
+					Dust d = Dust.NewDustDirect(pos - new Vector2(2f), 2, 2, DustID.GoldFlame);
 					d.noGravity = true;
 					d.velocity = (pos - Projectile.Center).SafeNormalize(Vector2.Zero) * 0.5f;
 					d.scale = 0.5f;
-					d.color = new Color(180, 220, 255);
 				}
 			}
 		}
