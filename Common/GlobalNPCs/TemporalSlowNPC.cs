@@ -19,10 +19,17 @@ namespace KyoMod.Common.GlobalNPCs
 			if (wasSlowed && npc.HasBuff(ModContent.BuffType<TemporalSlow>()))
 			{
 				// physicsDelta = engine forces (gravity, collision) applied after last PostAI.
-				// Scale by SlowFactor so engine gravity doesn't stack with AI-internal gravity
-				// and drain the arc too fast. Flying NPCs (EoC etc.) have delta≈0, no change.
+				// Scale by SlowFactor so engine gravity doesn't stack with AI-internal gravity.
 				Vector2 physicsDelta = npc.velocity - intendedVelocity * SlowFactor;
-				npc.velocity = intendedVelocity + physicsDelta * SlowFactor;
+				float newX = intendedVelocity.X + physicsDelta.X * SlowFactor;
+				float newY = intendedVelocity.Y + physicsDelta.Y * SlowFactor;
+
+				// If tile collision zeroed a component, propagate that zero to intendedVelocity
+				// so the AI detects the landing/wall hit and doesn't carry stale momentum.
+				if (npc.velocity.X == 0f) { newX = 0f; intendedVelocity.X = 0f; }
+				if (npc.velocity.Y == 0f) { newY = 0f; intendedVelocity.Y = 0f; }
+
+				npc.velocity = new Vector2(newX, newY);
 			}
 			return true;
 		}
