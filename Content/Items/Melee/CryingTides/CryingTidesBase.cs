@@ -14,8 +14,8 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 		private int comboCooldown = 0;
 		private int skillCooldown = 0;
 
-		private const int SwingCooldown = 15;
-		private const int SpinCooldown = 30;
+		private const int SwingCooldown = 5;
+		private const int SpinCooldown = 25;
 		private const int SkillCooldownMax = 80;
 
 		protected virtual bool HasSkill => false;

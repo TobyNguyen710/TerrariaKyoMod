@@ -24,15 +24,11 @@ namespace KyoMod.Content.Projectiles.Melee
 		private const float BaseSwingWidth = MathHelper.PiOver2 * 2.2f;
 		private const float HoldDistance = 5f;
 
-		private float ActualMaxTime => ComboState == 2 ? 45f : 25f;
+		private float ActualMaxTime => ComboState == 2 ? 30f : 15f;
 		private float Timer => ActualMaxTime - Projectile.timeLeft;
 		private float SwingRatio => MathHelper.Clamp(Timer / (ActualMaxTime - 1f), 0f, 1f);
 
-		public override void SetStaticDefaults()
-		{
-			ProjectileID.Sets.TrailCacheLength[Type] = 10;
-			ProjectileID.Sets.TrailingMode[Type] = 2;
-		}
+		public override void SetStaticDefaults() { }
 
 		public override void SetDefaults()
 		{
@@ -48,7 +44,7 @@ namespace KyoMod.Content.Projectiles.Melee
 		public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
 		{
 			float collisionPoint = 0f;
-			float bladeLength = 90f * Projectile.scale;
+			float bladeLength = 85f * Projectile.scale;
 			Vector2 holdPoint = direction * HoldDistance;
 
 			return Collision.CheckAABBvLineCollision(
@@ -135,18 +131,45 @@ namespace KyoMod.Content.Projectiles.Melee
 
 			SpriteEffects flip = lockedDirection < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 			float extraAngle = lockedDirection < 0 ? MathHelper.PiOver2 : 0f;
-
-			float drawRotation = Projectile.rotation + MathHelper.PiOver4 + extraAngle;
 			Vector2 drawOrigin = new Vector2(lockedDirection < 0 ? sword.Width : 0f, sword.Height);
 			Vector2 drawOffset = Owner.Center + direction * HoldDistance * 0.5f - Main.screenPosition;
 
-			for (int i = 0; i < Projectile.oldRot.Length; i++)
+			float baseAngle = direction.ToRotation();
+			float swingStart = ComboState switch
 			{
-				float alpha = (1f - i / (float)Projectile.oldRot.Length) * 0.18f;
-				float afterRot = Projectile.oldRot[i] + MathHelper.PiOver4 + extraAngle;
-				Main.EntitySpriteDraw(sword, drawOffset, null, lightColor * alpha, afterRot, drawOrigin, Projectile.scale, flip, 0);
+				1 => baseAngle + BaseSwingWidth / 2f * lockedDirection,
+				2 => Projectile.rotation - MathHelper.Pi * lockedDirection,
+				_ => baseAngle - BaseSwingWidth / 2f * lockedDirection,
+			};
+
+			Main.spriteBatch.End();
+			Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Additive, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+
+			const float closeThreshold = 0.55f;
+			float fanTail;
+			if (SwingRatio < closeThreshold)
+				fanTail = swingStart;
+			else
+			{
+				float closeProgress = (SwingRatio - closeThreshold) / (1f - closeThreshold);
+				fanTail = MathHelper.Lerp(swingStart, Projectile.rotation, closeProgress);
 			}
 
+			int fanCount = 5 + (int)((TierArc - 1f) * 15f);
+			for (int i = 0; i < fanCount; i++)
+			{
+				float t = i / (float)fanCount;
+				float ghostRot = MathHelper.Lerp(fanTail, Projectile.rotation, t);
+				float ghostDrawRot = ghostRot + MathHelper.PiOver4 + extraAngle;
+				float alpha = t * 0.20f * TierArc;
+				float ghostScale = Projectile.scale * (0.75f + t * 0.25f);
+				Main.EntitySpriteDraw(sword, drawOffset, null, lightColor * alpha, ghostDrawRot, drawOrigin, ghostScale, flip, 0);
+			}
+
+			Main.spriteBatch.End();
+			Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+
+			float drawRotation = Projectile.rotation + MathHelper.PiOver4 + extraAngle;
 			Main.EntitySpriteDraw(sword, drawOffset, null, lightColor, drawRotation, drawOrigin, Projectile.scale, flip, 0);
 			return false;
 		}
