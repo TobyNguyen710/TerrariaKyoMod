@@ -6,7 +6,8 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 	public class CryingTidesPostEoC : CryingTidesBase
 	{
 		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
-		protected override float SwordScale => 1.25f;
+		protected override float SwordScale => 1.0f;
+		protected override float SwordArc => 1.1f;
 
 		public override void SetDefaults()
 		{

@@ -18,15 +18,13 @@ namespace KyoMod.Content.Projectiles.Melee
 
 		public int ComboState => (int)Projectile.ai[0];
 		private float TierScale => Projectile.ai[1] > 0f ? Projectile.ai[1] : 1f;
+		private float TierArc   => Projectile.ai[2] > 0f ? Projectile.ai[2] : 1f;
 		public Player Owner => Main.player[Projectile.owner];
 
-		private const float NormalMaxTime = 25f;
-		private const float SpinMaxTime = 45f;
-		private float ActualMaxTime => ComboState == 2 ? SpinMaxTime : NormalMaxTime;
-
-		private const float SwingWidth = MathHelper.PiOver2 * 2.2f;
+		private const float BaseSwingWidth = MathHelper.PiOver2 * 2.2f;
 		private const float HoldDistance = 5f;
 
+		private float ActualMaxTime => ComboState == 2 ? 45f : 25f;
 		private float Timer => ActualMaxTime - Projectile.timeLeft;
 		private float SwingRatio => MathHelper.Clamp(Timer / (ActualMaxTime - 1f), 0f, 1f);
 
@@ -44,13 +42,13 @@ namespace KyoMod.Content.Projectiles.Melee
 			Projectile.friendly = true;
 			Projectile.penetrate = -1;
 			Projectile.usesLocalNPCImmunity = true;
-			Projectile.localNPCHitCooldown = (int)NormalMaxTime;
+			Projectile.localNPCHitCooldown = 25;
 		}
 
 		public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
 		{
 			float collisionPoint = 0f;
-			float bladeLength = 65f * Projectile.scale;
+			float bladeLength = 90f * Projectile.scale;
 			Vector2 holdPoint = direction * HoldDistance;
 
 			return Collision.CheckAABBvLineCollision(
@@ -60,14 +58,12 @@ namespace KyoMod.Content.Projectiles.Melee
 				18f, ref collisionPoint);
 		}
 
-		// Fast start that decelerates — sword commits immediately and finishes with authority
 		private static float EaseOut(float t)
 		{
 			float inv = 1f - t;
 			return 1f - inv * inv * inv;
 		}
 
-		// Gentle ease-in-out — shows the full spin arc evenly from start to finish
 		private static float SmoothStep(float t) => t * t * (3f - 2f * t);
 
 		public override void AI()
@@ -86,30 +82,31 @@ namespace KyoMod.Content.Projectiles.Melee
 
 			float baseAngle = direction.ToRotation();
 			float eased = ComboState == 2 ? SmoothStep(SwingRatio) : EaseOut(SwingRatio);
+			float swingWidth = BaseSwingWidth;
 
 			switch (ComboState)
 			{
-				case 0: // Downward slash
+				case 0:
 					Projectile.rotation = MathHelper.Lerp(
-						baseAngle - SwingWidth / 2f * lockedDirection,
-						baseAngle + SwingWidth / 2f * lockedDirection,
+						baseAngle - swingWidth / 2f * lockedDirection,
+						baseAngle + swingWidth / 2f * lockedDirection,
 						eased);
 					break;
 
-				case 1: // Upward slash
+				case 1:
 					Projectile.rotation = MathHelper.Lerp(
-						baseAngle + SwingWidth / 2f * lockedDirection,
-						baseAngle - SwingWidth / 2f * lockedDirection,
+						baseAngle + swingWidth / 2f * lockedDirection,
+						baseAngle - swingWidth / 2f * lockedDirection,
 						eased);
 					break;
 
-				case 2: // Full 360 spin
+				case 2:
 					float spinStart = baseAngle - MathHelper.PiOver2 * lockedDirection;
 					Projectile.rotation = spinStart + MathHelper.TwoPi * eased * lockedDirection;
 					break;
 			}
 
-			Projectile.scale = TierScale * (1.2f + (float)Math.Sin(SwingRatio * MathHelper.Pi) * 0.4f);
+			Projectile.scale = TierScale * TierArc * (1.2f + (float)Math.Sin(SwingRatio * MathHelper.Pi) * 0.4f);
 
 			Owner.heldProj = Projectile.whoAmI;
 			Owner.ChangeDir(lockedDirection);

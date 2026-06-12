@@ -20,6 +20,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
 		protected virtual bool HasSkill => false;
 		protected virtual float SwordScale => 1f;
+		protected virtual float SwordArc => 1f;
 
 		public override void SetDefaults()
 		{
@@ -67,7 +68,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 				return false;
 			}
 
-			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungBlade>(), damage, knockback, player.whoAmI, Combo, SwordScale);
+			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungBlade>(), damage, knockback, player.whoAmI, Combo, SwordScale, SwordArc);
 			int prevCombo = Combo;
 			Combo = (Combo + 1) % 3;
 			comboCooldown = prevCombo == 2 ? SpinCooldown : SwingCooldown;
