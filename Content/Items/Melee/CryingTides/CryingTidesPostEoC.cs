@@ -6,11 +6,12 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 	public class CryingTidesPostEoC : CryingTidesBase
 	{
 		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
+		protected override float SwordScale => 1.25f;
 
 		public override void SetDefaults()
 		{
 			base.SetDefaults();
-			Item.damage = 110;
+			Item.damage = 135;
 			Item.rare = ItemRarityID.Green;
 			Item.value = Item.buyPrice(gold: 5);
 		}

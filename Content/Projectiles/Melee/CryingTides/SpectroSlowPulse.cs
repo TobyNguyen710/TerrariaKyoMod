@@ -2,6 +2,7 @@ using System;
 using KyoMod.Common.GlobalProjectiles;
 using KyoMod.Content.Buffs;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -12,12 +13,13 @@ namespace KyoMod.Content.Projectiles.Melee
 	{
 		public override string Texture => "KyoMod/Content/Projectiles/Melee/TestSwordArrow";
 
-		private const float MaxRadius = 300f;
+		private const float MaxRadius = 400f;
 		private const int Duration = 40;
 		private const int SlowDuration = 240; // 4 seconds
 
 		private float Progress => 1f - Projectile.timeLeft / (float)Duration;
 		private float CurrentRadius => Progress * MaxRadius;
+		private float TierScale => Projectile.ai[0] > 0f ? Projectile.ai[0] : 1f;
 
 		public override void SetDefaults()
 		{
@@ -32,12 +34,17 @@ namespace KyoMod.Content.Projectiles.Melee
 
 		public override void AI()
 		{
-			Projectile.Center = Main.player[Projectile.owner].Center;
+			Player owner = Main.player[Projectile.owner];
+			Projectile.Center = owner.Center;
+
+			owner.heldProj = Projectile.whoAmI;
+			owner.itemRotation = -MathHelper.PiOver2;
+			if (owner.direction != 1)
+				owner.itemRotation += MathHelper.Pi;
 
 			float radius = CurrentRadius;
 			SpawnRingDust(radius);
 
-			// Apply slow to NPCs as ring reaches them
 			for (int i = 0; i < Main.maxNPCs; i++)
 			{
 				NPC npc = Main.npc[i];
@@ -100,6 +107,20 @@ namespace KyoMod.Content.Projectiles.Melee
 			}
 		}
 
-		public override bool PreDraw(ref Color lightColor) => false;
+		public override bool PreDraw(ref Color lightColor)
+		{
+			Player owner = Main.player[Projectile.owner];
+			Texture2D sword = ModContent.Request<Texture2D>("KyoMod/Content/Items/Melee/CryingTides/CryingTides").Value;
+
+			int dir = owner.direction;
+			SpriteEffects flip = dir < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+			float extraAngle = dir < 0 ? MathHelper.PiOver2 : 0f;
+			float drawRotation = -MathHelper.PiOver2 + MathHelper.PiOver4 + extraAngle;
+			Vector2 drawOrigin = new Vector2(dir < 0 ? sword.Width : 0f, sword.Height);
+			Vector2 drawPos = owner.Center - Main.screenPosition;
+
+			Main.EntitySpriteDraw(sword, drawPos, null, lightColor, drawRotation, drawOrigin, TierScale * 1.2f, flip, 0);
+			return false;
+		}
 	}
 }

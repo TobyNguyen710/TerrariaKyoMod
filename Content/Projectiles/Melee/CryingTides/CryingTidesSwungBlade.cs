@@ -14,15 +14,17 @@ namespace KyoMod.Content.Projectiles.Melee
 
 		private bool initialized = false;
 		private Vector2 direction = Vector2.Zero;
+		private int lockedDirection = 1;
 
 		public int ComboState => (int)Projectile.ai[0];
+		private float TierScale => Projectile.ai[1] > 0f ? Projectile.ai[1] : 1f;
 		public Player Owner => Main.player[Projectile.owner];
 
 		private const float NormalMaxTime = 25f;
-		private const float SpinMaxTime = 40f;
+		private const float SpinMaxTime = 45f;
 		private float ActualMaxTime => ComboState == 2 ? SpinMaxTime : NormalMaxTime;
 
-		private const float SwingWidth = MathHelper.PiOver2 * 2.2f; // 135 degree arc
+		private const float SwingWidth = MathHelper.PiOver2 * 2.2f;
 		private const float HoldDistance = 5f;
 
 		private float Timer => ActualMaxTime - Projectile.timeLeft;
@@ -58,8 +60,15 @@ namespace KyoMod.Content.Projectiles.Melee
 				18f, ref collisionPoint);
 		}
 
-		// Quintic ease-in: very slow start that ramps up extremely fast
-		private static float EaseIn(float t) => t * t * t * t; // More t multiplications = more easing
+		// Fast start that decelerates — sword commits immediately and finishes with authority
+		private static float EaseOut(float t)
+		{
+			float inv = 1f - t;
+			return 1f - inv * inv * inv;
+		}
+
+		// Gentle ease-in-out — shows the full spin arc evenly from start to finish
+		private static float SmoothStep(float t) => t * t * (3f - 2f * t);
 
 		public override void AI()
 		{
@@ -67,6 +76,7 @@ namespace KyoMod.Content.Projectiles.Melee
 			{
 				Projectile.timeLeft = (int)ActualMaxTime;
 				direction = Vector2.Normalize(Projectile.velocity);
+				lockedDirection = direction.X >= 0f ? 1 : -1;
 				initialized = true;
 				Projectile.netUpdate = true;
 			}
@@ -75,55 +85,67 @@ namespace KyoMod.Content.Projectiles.Melee
 			Projectile.velocity = Vector2.Zero;
 
 			float baseAngle = direction.ToRotation();
-			float eased = EaseIn(SwingRatio);
+			float eased = ComboState == 2 ? SmoothStep(SwingRatio) : EaseOut(SwingRatio);
 
 			switch (ComboState)
 			{
-				case 0: // Downward slash: sweeps from above to below
+				case 0: // Downward slash
 					Projectile.rotation = MathHelper.Lerp(
-						baseAngle - SwingWidth / 2f * Owner.direction,
-						baseAngle + SwingWidth / 2f * Owner.direction,
+						baseAngle - SwingWidth / 2f * lockedDirection,
+						baseAngle + SwingWidth / 2f * lockedDirection,
 						eased);
 					break;
 
-				case 1: // Upward slash: reverse of downward
+				case 1: // Upward slash
 					Projectile.rotation = MathHelper.Lerp(
-						baseAngle + SwingWidth / 2f * Owner.direction,
-						baseAngle - SwingWidth / 2f * Owner.direction,
+						baseAngle + SwingWidth / 2f * lockedDirection,
+						baseAngle - SwingWidth / 2f * lockedDirection,
 						eased);
 					break;
 
-				case 2: // Spin: starts 90° above aim, sweeps full 360° (clockwise right, counter-clockwise left)
-					float spinStart = baseAngle - MathHelper.PiOver2 * Owner.direction;
-					Projectile.rotation = spinStart + MathHelper.TwoPi * eased * Owner.direction;
+				case 2: // Full 360 spin
+					float spinStart = baseAngle - MathHelper.PiOver2 * lockedDirection;
+					Projectile.rotation = spinStart + MathHelper.TwoPi * eased * lockedDirection;
 					break;
 			}
 
-			// Sword grows and shrinks over the arc
-			Projectile.scale = 1.2f + (float)Math.Sin(SwingRatio * MathHelper.Pi) * 0.4f;
+			Projectile.scale = TierScale * (1.2f + (float)Math.Sin(SwingRatio * MathHelper.Pi) * 0.4f);
 
 			Owner.heldProj = Projectile.whoAmI;
-			Owner.ChangeDir(Math.Sign(direction.X));
+			Owner.ChangeDir(lockedDirection);
 			Owner.itemRotation = Projectile.rotation;
-			if (Owner.direction != 1)
+			if (lockedDirection != 1)
 				Owner.itemRotation -= MathHelper.Pi;
 			Owner.itemRotation = MathHelper.WrapAngle(Owner.itemRotation);
+		}
+
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
+		{
+			if (Main.netMode == NetmodeID.Server) return;
+
+			for (int i = 0; i < 15; i++)
+			{
+				Dust d = Dust.NewDustDirect(target.Center, 0, 0, DustID.GoldFlame);
+				d.velocity = (Projectile.rotation + Main.rand.NextFloat(-0.5f, 0.5f)).ToRotationVector2() * Main.rand.NextFloat(3f, 7f);
+				d.scale = Main.rand.NextFloat(0.8f, 1.5f);
+				d.noGravity = true;
+			}
 		}
 
 		public override bool PreDraw(ref Color lightColor)
 		{
 			Texture2D sword = ModContent.Request<Texture2D>("KyoMod/Content/Items/Melee/CryingTides/CryingTides").Value;
 
-			SpriteEffects flip = Owner.direction < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-			float extraAngle = Owner.direction < 0 ? MathHelper.PiOver2 : 0f;
+			SpriteEffects flip = lockedDirection < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+			float extraAngle = lockedDirection < 0 ? MathHelper.PiOver2 : 0f;
 
 			float drawRotation = Projectile.rotation + MathHelper.PiOver4 + extraAngle;
-			Vector2 drawOrigin = new Vector2(Owner.direction < 0 ? sword.Width : 0f, sword.Height);
+			Vector2 drawOrigin = new Vector2(lockedDirection < 0 ? sword.Width : 0f, sword.Height);
 			Vector2 drawOffset = Owner.Center + direction * HoldDistance * 0.5f - Main.screenPosition;
 
 			for (int i = 0; i < Projectile.oldRot.Length; i++)
 			{
-				float alpha = (1f - i / (float)Projectile.oldRot.Length) * 0.12f;
+				float alpha = (1f - i / (float)Projectile.oldRot.Length) * 0.18f;
 				float afterRot = Projectile.oldRot[i] + MathHelper.PiOver4 + extraAngle;
 				Main.EntitySpriteDraw(sword, drawOffset, null, lightColor * alpha, afterRot, drawOrigin, Projectile.scale, flip, 0);
 			}
@@ -136,12 +158,14 @@ namespace KyoMod.Content.Projectiles.Melee
 		{
 			writer.Write(initialized);
 			writer.WriteVector2(direction);
+			writer.Write(lockedDirection);
 		}
 
 		public override void ReceiveExtraAI(BinaryReader reader)
 		{
 			initialized = reader.ReadBoolean();
 			direction = reader.ReadVector2();
+			lockedDirection = reader.ReadInt32();
 		}
 	}
 }

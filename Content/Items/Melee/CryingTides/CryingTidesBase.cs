@@ -19,6 +19,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 		private const int SkillCooldownMax = 80;
 
 		protected virtual bool HasSkill => false;
+		protected virtual float SwordScale => 1f;
 
 		public override void SetDefaults()
 		{
@@ -61,12 +62,12 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 		{
 			if (HasSkill && player.altFunctionUse == 2)
 			{
-				Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI);
+				Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI, SwordScale);
 				skillCooldown = SkillCooldownMax;
 				return false;
 			}
 
-			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungBlade>(), damage, knockback, player.whoAmI, Combo);
+			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungBlade>(), damage, knockback, player.whoAmI, Combo, SwordScale);
 			int prevCombo = Combo;
 			Combo = (Combo + 1) % 3;
 			comboCooldown = prevCombo == 2 ? SpinCooldown : SwingCooldown;

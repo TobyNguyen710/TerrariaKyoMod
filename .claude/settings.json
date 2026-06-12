@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git --version)",
       "Bash(gh --version)",
-      "Read(//c/Users/toby0/Documents/My Games/Terraria/tModLoader/ModSources/ExampleMod/**)"
+      "Read(//c/Users/toby0/Documents/My Games/Terraria/tModLoader/ModSources/ExampleMod/**)",
+      "Read(//c/Users/toby0/.claude/projects/c--Users-toby0-Documents-My-Games-Terraria-tModLoader-ModSources-KyoMod/**)"
     ]
   }
 }

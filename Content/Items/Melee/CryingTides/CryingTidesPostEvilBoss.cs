@@ -7,11 +7,13 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 	{
 		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
 		protected override bool HasSkill => true;
+		protected override float SwordScale => 1.5f;
 
 		public override void SetDefaults()
 		{
 			base.SetDefaults();
-			Item.damage = 145;
+			Item.damage = 170;
+			Item.crit = 10;
 			Item.rare = ItemRarityID.Orange;
 			Item.value = Item.buyPrice(gold: 15);
 		}
