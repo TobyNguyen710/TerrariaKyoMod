@@ -36,6 +36,7 @@ Projectiles: {
 	TestSwordArrow.DisplayName: Test Sword Arrow
 	CryingTidesSwungBlade.DisplayName: Crying Tides Swung Blade
 	SpectroSlowPulse.DisplayName: Spectro Slow Pulse
+	CryingTidesSwungSpectro.DisplayName: Crying Tides Swung Spectro
 }
 
 Buffs: {

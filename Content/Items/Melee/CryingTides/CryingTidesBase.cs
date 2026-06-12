@@ -43,7 +43,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
 		public override void HoldItem(Player player)
 		{
-			bool swingActive = Main.projectile.Any(p => p.active && p.owner == player.whoAmI && p.type == ModContent.ProjectileType<CryingTidesSwungBlade>());
+			bool swingActive = Main.projectile.Any(p => p.active && p.owner == player.whoAmI && p.type == ModContent.ProjectileType<CryingTidesSwungSpectro>());
 			if (!swingActive && comboCooldown > 0)
 				comboCooldown--;
 			if (skillCooldown > 0)
@@ -56,7 +56,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 				return skillCooldown <= 0;
 			if (comboCooldown > 0)
 				return false;
-			return !Main.projectile.Any(p => p.active && p.owner == player.whoAmI && p.type == ModContent.ProjectileType<CryingTidesSwungBlade>());
+			return !Main.projectile.Any(p => p.active && p.owner == player.whoAmI && p.type == ModContent.ProjectileType<CryingTidesSwungSpectro>());
 		}
 
 		public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
@@ -68,7 +68,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 				return false;
 			}
 
-			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungBlade>(), damage, knockback, player.whoAmI, Combo, SwordScale, SwordArc);
+			Projectile.NewProjectile(source, player.Center, velocity, ModContent.ProjectileType<CryingTidesSwungSpectro>(), damage, knockback, player.whoAmI, Combo, SwordScale, SwordArc);
 			int prevCombo = Combo;
 			Combo = (Combo + 1) % 3;
 			comboCooldown = prevCombo == 2 ? SpinCooldown : SwingCooldown;
