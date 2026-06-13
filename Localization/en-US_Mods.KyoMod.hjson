@@ -37,6 +37,7 @@ Projectiles: {
 	CryingTidesSwungBlade.DisplayName: Crying Tides Swung Blade
 	SpectroSlowPulse.DisplayName: Spectro Slow Pulse
 	CryingTidesSwungSpectro.DisplayName: Crying Tides Swung Spectro
+	CryingTidesPanel.DisplayName: Crying Tides Panel
 }
 
 Buffs: {

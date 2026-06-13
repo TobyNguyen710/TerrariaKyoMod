@@ -22,7 +22,7 @@ namespace KyoMod.Content.Projectiles.Melee
 		protected const float HoldDistance = 5f;
 
 		protected virtual float MaxTimeNormal => 15f;
-		protected virtual float MaxTimeSpin => 30f;
+		protected virtual float MaxTimeSpin => 25f;
 		protected virtual float BladeLength => 85f;
 
 		protected float ActualMaxTime => ComboState == 2 ? MaxTimeSpin : MaxTimeNormal;
