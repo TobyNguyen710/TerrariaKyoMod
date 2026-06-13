@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
+using Terraria.Audio;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -13,6 +14,8 @@ namespace KyoMod.Content.Projectiles.Melee
 		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (Main.netMode == NetmodeID.Server) return;
+
+			SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordImpactLight") { PitchVariance = 0.25f }, target.Center);
 
 			for (int i = 0; i < 15; i++)
 			{

@@ -33,7 +33,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 			Item.useTurn = true;
 			Item.useStyle = ItemUseStyleID.Shoot;
 			Item.knockBack = 7f;
-			Item.UseSound = SoundID.Item1;
+			Item.UseSound = null;
 			Item.autoReuse = true;
 			Item.shoot = ProjectileID.PurificationPowder;
 			Item.shootSpeed = 12f;

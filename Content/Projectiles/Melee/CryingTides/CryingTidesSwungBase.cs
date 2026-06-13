@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Microsoft.Xna.Framework;
 using Terraria;
+using Terraria.Audio;
 using Terraria.ModLoader;
 
 namespace KyoMod.Content.Projectiles.Melee
@@ -69,6 +70,15 @@ namespace KyoMod.Content.Projectiles.Melee
 				lockedDirection = direction.X >= 0f ? 1 : -1;
 				initialized = true;
 				Projectile.netUpdate = true;
+
+				if (Main.myPlayer == Projectile.owner)
+				{
+					bool heavy = Main.rand.NextBool();
+					SoundStyle swingSound = heavy
+						? new SoundStyle("KyoMod/Sounds/SwordSwingHeavy") { PitchVariance = 0.2f, Volume = 0.4f }
+						: new SoundStyle("KyoMod/Sounds/SwordSwingLight") { PitchVariance = 0.2f };
+					SoundEngine.PlaySound(swingSound, Projectile.Center);
+				}
 			}
 
 			Projectile.Center = Owner.Center + direction * HoldDistance;

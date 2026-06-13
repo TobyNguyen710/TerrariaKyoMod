@@ -4,6 +4,7 @@ using KyoMod.Content.Buffs;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
+using Terraria.Audio;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -35,6 +36,9 @@ namespace KyoMod.Content.Projectiles.Melee
 		public override void AI()
 		{
 			Player owner = Main.player[Projectile.owner];
+
+			if (Projectile.timeLeft == Duration && Main.myPlayer == Projectile.owner)
+				SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordSkill") { PitchVariance = 0.1f }, Projectile.Center);
 			Projectile.Center = owner.Center;
 
 			owner.heldProj = Projectile.whoAmI;
