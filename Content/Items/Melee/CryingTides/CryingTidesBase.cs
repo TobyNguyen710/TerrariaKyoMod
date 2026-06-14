@@ -100,14 +100,16 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
         public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
         {
-            if (HasSkill && player.altFunctionUse == 2)
+            if (HasSkill && player.altFunctionUse == 2 && ActiveForm == 0)
             {
                 Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI, SwordScale);
                 skillCooldown = SkillCooldownMax;
                 return false;
             }
 
-            int projType = ModContent.ProjectileType<CryingTidesSwungSpectro>();
+            int projType = ActiveForm == 1
+                ? ModContent.ProjectileType<CryingTidesSwungHavoc>()
+                : ModContent.ProjectileType<CryingTidesSwungSpectro>();
 
             Projectile.NewProjectile(source, player.Center, velocity, projType, damage, knockback, player.whoAmI, Combo, SwordScale, SwordArc);
             int prevCombo = Combo;

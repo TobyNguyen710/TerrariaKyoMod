@@ -30,6 +30,17 @@ Items: {
 			It's snowing on Mt.Fuji
 			'''
 	}
+
+	CryingTidesPostWoF: {
+		DisplayName: Crying Tides
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Middle-click to switch between Spectro and Havoc forms
+			[Spectro] Right-click to unleash a temporal slow pulse
+			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
+			'''
+	}
 }
 
 Projectiles: {
@@ -38,6 +49,7 @@ Projectiles: {
 	SpectroSlowPulse.DisplayName: Spectro Slow Pulse
 	CryingTidesSwungSpectro.DisplayName: Crying Tides Swung Spectro
 	CryingTidesPanel.DisplayName: Crying Tides Panel
+	CryingTidesSwungHavoc.DisplayName: Crying Tides Swung Havoc
 }
 
 Buffs: {
