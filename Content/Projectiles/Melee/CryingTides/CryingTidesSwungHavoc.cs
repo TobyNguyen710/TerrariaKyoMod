@@ -17,7 +17,8 @@ namespace KyoMod.Content.Projectiles.Melee
 
         private const float NormalTime = 40f;
         private const float HoldRatio  = 0.85f;
-        private const float HalfArc    = MathHelper.Pi * 100f / 180f; // 100° per side = 200° total
+        private const float HalfArc       = MathHelper.Pi * 100f / 180f; // 100° per side = 200° total
+        private const float HalfArcCombo1 = MathHelper.Pi * 120f / 180f; // combo 1: 120° per side = 240° total
 
         protected override float MaxTimeNormal => NormalTime;
         protected override float MaxTimeSpin   => 72f;
@@ -158,11 +159,19 @@ namespace KyoMod.Content.Projectiles.Melee
                 swingSoundPlayed = true;
                 PlaySwingSfx();
             }
+
+            // Emit point light from the blade tip, intensity scales with stacks
+            int   stacks    = Owner.GetModPlayer<CryingTidesPlayer>().HavocStacks;
+            float intensity = stacks >= 20 ? 1.0f : stacks >= 10 ? 0.5f : 0.18f;
+            Vector2 lightPos = HavocProgress > 0f
+                ? Owner.Center + Projectile.rotation.ToRotationVector2() * BladeLength * Projectile.scale * 0.7f
+                : Owner.Center;
+            Lighting.AddLight(lightPos, intensity * 0.85f, intensity * 0.12f, intensity * 0.08f);
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
-            if (HavocProgress == 0f) return false;
+            if (HavocProgress == 0f || ghostDelayActive) return false;
 
             float bladeLen = BladeLength * Projectile.scale;
             Vector2 center = Owner.Center;
@@ -267,16 +276,16 @@ namespace KyoMod.Content.Projectiles.Melee
                         p);
                     break;
 
-                case 1: // sweep right → left (mirrored combo 0)
+                case 1: // sweep right → left (mirrored combo 0), wider arc
                     Projectile.rotation = MathHelper.Lerp(
-                        baseAngle + HalfArc * lockedDirection,
-                        baseAngle - HalfArc * lockedDirection,
+                        baseAngle + HalfArcCombo1 * lockedDirection,
+                        baseAngle - HalfArcCombo1 * lockedDirection,
                         p);
                     break;
 
                 case 2: // full 360° spin
                     float spinStart = baseAngle - MathHelper.PiOver2 * lockedDirection;
-                    Projectile.rotation = spinStart + MathHelper.TwoPi * p * lockedDirection;
+                    Projectile.rotation = spinStart + MathHelper.Pi * (400f / 180f) * p * lockedDirection;
                     break;
             }
         }
@@ -293,7 +302,6 @@ namespace KyoMod.Content.Projectiles.Melee
             SpriteEffects flip  = mirrorSwing ? (baseFlip | SpriteEffects.FlipVertically) : baseFlip;
             Vector2 drawOrigin  = new Vector2(lockedDirection < 0 ? scythe.Width : 0f, mirrorSwing ? 0f : scythe.Height);
             Vector2 drawOffset  = Owner.Center + direction * HoldDistance * 0.5f - Main.screenPosition;
-            float   baseAngle   = direction.ToRotation();
             float   drawRot     = mirrorSwing
                 ? Projectile.rotation - MathHelper.PiOver4 - extraAngle
                 : Projectile.rotation + MathHelper.PiOver4 + extraAngle;
@@ -303,20 +311,34 @@ namespace KyoMod.Content.Projectiles.Melee
             Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Additive, Main.DefaultSamplerState,
                 DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
 
-            float swingStart = ComboState switch
+            int fanStacks   = Owner.GetModPlayer<CryingTidesPlayer>().HavocStacks;
+            // Direction the blade travels along the arc (combo 1 mirrors the sweep)
+            int fanSweepDir = ComboState == 1 ? -lockedDirection : lockedDirection;
+
+            int   fanCount;
+            float fanSpread;
+            float alphaScale;
+
+            if (HavocProgress <= 0f)
             {
-                1 => baseAngle + HalfArc * lockedDirection,
-                2 => baseAngle - MathHelper.PiOver2 * lockedDirection,
-                _ => baseAngle - HalfArc * lockedDirection,
-            };
+                // Hold phase — tight cluster, not yet swinging
+                fanCount   = 3;
+                fanSpread  = 0.08f;
+                alphaScale = 0.6f;
+            }
+            else
+            {
+                int   fanBonus  = fanStacks >= 20 ? 8 : fanStacks >= 10 ? 4 : 0;
+                fanCount        = 5 + (int)((TierArc - 1f) * 15f) + fanBonus;
+                float maxSpread = fanStacks >= 20 ? 4.5f : fanStacks >= 10 ? 2.0f : 0.7f;
+                // Trail grows as the blade sweeps — starts tight, fans out to maxSpread
+                fanSpread  = MathHelper.Lerp(0f, maxSpread, HavocProgress);
+                alphaScale = fanStacks >= 20 ? 1.35f : fanStacks >= 10 ? 1.15f : 1.0f;
+            }
 
-            const float closeThreshold = 0.55f;
-            float fanTail = SwingRatio < closeThreshold
-                ? swingStart
-                : MathHelper.Lerp(swingStart, Projectile.rotation,
-                    (SwingRatio - closeThreshold) / (1f - closeThreshold));
+            // Tail sits fanSpread radians behind the blade along the actual sweep direction
+            float fanTail = Projectile.rotation - fanSpread * fanSweepDir;
 
-            int fanCount = 5 + (int)((TierArc - 1f) * 15f);
             for (int i = 0; i < fanCount; i++)
             {
                 float t            = i / (float)fanCount;
@@ -324,7 +346,7 @@ namespace KyoMod.Content.Projectiles.Melee
                 float ghostDrawRot = mirrorSwing
                     ? ghostRot - MathHelper.PiOver4 - extraAngle
                     : ghostRot + MathHelper.PiOver4 + extraAngle;
-                float alpha        = t * 0.20f * TierArc;
+                float alpha        = t * 0.20f * TierArc * alphaScale;
                 float ghostScale   = mainScale * (0.75f + t * 0.25f);
                 Main.spriteBatch.Draw(scythe, drawOffset, null, new Color(220, 60, 60) * alpha,
                     ghostDrawRot, drawOrigin, ghostScale, flip, 0);
@@ -335,6 +357,24 @@ namespace KyoMod.Content.Projectiles.Melee
                 DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
 
             Main.spriteBatch.Draw(scythe, drawOffset, null, lightColor, drawRot, drawOrigin, mainScale, flip, 0);
+
+            // Additive glow pass — makes the blade self-illuminate in dark areas
+            int   stacks    = Owner.GetModPlayer<CryingTidesPlayer>().HavocStacks;
+            float glowAlpha = stacks >= 20 ? 0.55f : stacks >= 10 ? 0.25f : 0f;
+            if (glowAlpha > 0f)
+            {
+                Main.spriteBatch.End();
+                Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive, Main.DefaultSamplerState,
+                    DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+
+                Main.spriteBatch.Draw(scythe, drawOffset, null, new Color(255, 80, 40) * glowAlpha,
+                    drawRot, drawOrigin, mainScale, flip, 0);
+
+                Main.spriteBatch.End();
+                Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState,
+                    DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+            }
+
             return false;
         }
 
