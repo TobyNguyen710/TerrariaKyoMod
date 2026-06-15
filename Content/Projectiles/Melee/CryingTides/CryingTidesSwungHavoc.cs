@@ -32,9 +32,10 @@ namespace KyoMod.Content.Projectiles.Melee
             }
         }
 
-        private bool  swingSoundPlayed  = false;
-        private bool  ghostDelayActive  = false;
-        private float prevSpinRot       = 0f;
+        private bool         swingSoundPlayed  = false;
+        private bool         ghostDelayActive  = false;
+        private float        prevSpinRot       = 0f;
+        private SoundStyle?  savedNpcHitSound  = null;
 
         private struct DelayedHitEntry
         {
@@ -58,11 +59,8 @@ namespace KyoMod.Content.Projectiles.Melee
 
         private void PlaySwingSfx()
         {
-            bool heavy = Main.rand.NextBool();
-            SoundStyle sfx = heavy
-                ? new SoundStyle("KyoMod/Sounds/SwordSwingHeavy") { PitchVariance = 0.2f, Volume = 0.4f }
-                : new SoundStyle("KyoMod/Sounds/SwordSwingLight") { PitchVariance = 0.2f };
-            SoundEngine.PlaySound(sfx, Projectile.Center);
+            string name = Main.rand.NextBool() ? "KyoMod/Sounds/ScytheSlash1" : "KyoMod/Sounds/ScytheSlash2";
+            SoundEngine.PlaySound(new SoundStyle(name) { PitchVariance = 0.15f, Volume = 0.6f }, Projectile.Center);
         }
 
         private void FireDelayedHitSingle(int idx, float damageMultiplier)
@@ -75,18 +73,34 @@ namespace KyoMod.Content.Projectiles.Melee
                 int scaledDamage = (int)(Projectile.damage * damageMultiplier);
                 int dir = Math.Sign(npc.Center.X - Owner.Center.X);
                 if (dir == 0) dir = lockedDirection;
+
+                // Suppress NPC's default hit sound so only our ScytheImpactLight plays
+                var savedSound = npc.HitSound;
+                npc.HitSound = null;
                 int actualDamage = npc.SimpleStrikeNPC(scaledDamage, dir, false, Projectile.knockBack, DamageClass.Melee);
+                npc.HitSound = savedSound;
+
                 Owner.addDPS(actualDamage);
             }
 
             if (Main.netMode != NetmodeID.Server)
             {
+                SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/ScytheImpactLight") { PitchVariance = 0.2f, Volume = 0.5f }, npc.Center);
+
                 for (int i = 0; i < 10; i++)
                 {
                     Dust d = Dust.NewDustDirect(npc.Center, 0, 0, DustID.Crimson);
                     d.velocity  = Main.rand.NextFloat(MathHelper.TwoPi).ToRotationVector2() * Main.rand.NextFloat(3f, 7f);
                     d.scale     = Main.rand.NextFloat(0.8f, 1.5f);
                     d.noGravity = true;
+                }
+
+                int markIdx = Projectile.NewProjectile(Projectile.GetSource_FromThis(), npc.Center, Vector2.Zero,
+                    ModContent.ProjectileType<HavocSlashMark>(), 0, 0f, Projectile.owner);
+                if (markIdx < Main.maxProjectiles)
+                {
+                    Main.projectile[markIdx].ai[0] = Main.rand.NextFloat(MathHelper.TwoPi);
+                    Main.projectile[markIdx].ai[1] = 35f;
                 }
             }
 
@@ -180,8 +194,16 @@ namespace KyoMod.Content.Projectiles.Melee
             }
         }
 
+        public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
+        {
+            savedNpcHitSound = target.HitSound;
+            target.HitSound  = null;
+        }
+
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
+            target.HitSound = savedNpcHitSound;
+
             Owner.GetModPlayer<CryingTidesPlayer>().AddHavocStack();
 
             if (ComboState == 1)
@@ -207,12 +229,28 @@ namespace KyoMod.Content.Projectiles.Melee
 
             if (Main.netMode == NetmodeID.Server) return;
 
+            SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/ScytheImpactHeavy") { PitchVariance = 0.15f, Volume = 0.7f }, target.Center);
+
             for (int i = 0; i < 15; i++)
             {
                 Dust d = Dust.NewDustDirect(target.Center, 0, 0, DustID.Crimson);
                 d.velocity  = (Projectile.rotation + Main.rand.NextFloat(-0.5f, 0.5f)).ToRotationVector2() * Main.rand.NextFloat(3f, 7f);
                 d.scale     = Main.rand.NextFloat(0.8f, 1.5f);
                 d.noGravity = true;
+            }
+
+            // Tangent of the arc at the moment of impact: perpendicular to the blade radius in the swing direction
+            float sweepDir  = ComboState == 2
+                ? lockedDirection
+                : (MathHelper.WrapAngle(Projectile.rotation - prevSpinRot) >= 0f ? 1f : -1f);
+            float slashAngle = Projectile.rotation + MathHelper.PiOver2 * sweepDir;
+
+            int markIdx = Projectile.NewProjectile(Projectile.GetSource_FromThis(), target.Center, Vector2.Zero,
+                ModContent.ProjectileType<HavocSlashMark>(), 0, 0f, Projectile.owner);
+            if (markIdx < Main.maxProjectiles)
+            {
+                Main.projectile[markIdx].ai[0] = slashAngle;
+                Main.projectile[markIdx].ai[1] = 50f;
             }
         }
 

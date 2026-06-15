@@ -50,6 +50,7 @@ Projectiles: {
 	CryingTidesSwungSpectro.DisplayName: Crying Tides Swung Spectro
 	CryingTidesPanel.DisplayName: Crying Tides Panel
 	CryingTidesSwungHavoc.DisplayName: Crying Tides Swung Havoc
+	HavocSlashMark.DisplayName: Havoc Slash Mark
 }
 
 Buffs: {
