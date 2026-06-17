@@ -33,10 +33,14 @@ namespace KyoMod.Content.Projectiles.Melee
             }
         }
 
-        private bool         swingSoundPlayed  = false;
-        private bool         ghostDelayActive  = false;
-        private float        prevSpinRot       = 0f;
-        private SoundStyle?  savedNpcHitSound  = null;
+        private bool         swingSoundPlayed      = false;
+        private bool         ghostDelayActive      = false;
+        private float        prevSpinRot           = 0f;
+        private SoundStyle?  savedNpcHitSound      = null;
+        private int          stacksGrantedThisSwing = 0;
+        private bool         directStackGranted     = false;
+
+        private int StackCap => ComboState switch { 0 => 1, 1 => 2, 2 => 4, _ => 1 };
 
         private struct DelayedHitEntry
         {
@@ -105,7 +109,11 @@ namespace KyoMod.Content.Projectiles.Melee
                 }
             }
 
-            Owner.GetModPlayer<CryingTidesPlayer>().AddHavocStack();
+            if (stacksGrantedThisSwing < StackCap)
+            {
+                stacksGrantedThisSwing++;
+                Owner.GetModPlayer<CryingTidesPlayer>().AddHavocStack();
+            }
         }
 
         public override void AI()
@@ -213,7 +221,12 @@ namespace KyoMod.Content.Projectiles.Melee
         {
             target.HitSound = savedNpcHitSound;
 
-            Owner.GetModPlayer<CryingTidesPlayer>().AddHavocStack();
+            if (!directStackGranted)
+            {
+                directStackGranted = true;
+                stacksGrantedThisSwing++;
+                Owner.GetModPlayer<CryingTidesPlayer>().AddHavocStack();
+            }
 
             if (ComboState == 1)
             {
