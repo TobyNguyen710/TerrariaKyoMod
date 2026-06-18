@@ -51,6 +51,7 @@ Projectiles: {
 	CryingTidesPanel.DisplayName: Crying Tides Panel
 	CryingTidesSwungHavoc.DisplayName: Crying Tides Swung Havoc
 	HavocSlashMark.DisplayName: Havoc Slash Mark
+	HavocSkillScythe.DisplayName: Havoc Skill Scythe
 }
 
 Buffs: {

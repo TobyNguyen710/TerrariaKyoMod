@@ -78,11 +78,12 @@ namespace KyoMod.Content.Projectiles.Melee
                 int scaledDamage = (int)(Projectile.damage * damageMultiplier);
                 int dir = Math.Sign(npc.Center.X - Owner.Center.X);
                 if (dir == 0) dir = lockedDirection;
+                bool crit = Main.rand.Next(100) < Owner.GetCritChance(DamageClass.Melee);
 
                 // Suppress NPC's default hit sound so only our ScytheImpactLight plays
                 var savedSound = npc.HitSound;
                 npc.HitSound = null;
-                int actualDamage = npc.SimpleStrikeNPC(scaledDamage, dir, false, Projectile.knockBack, DamageClass.Melee);
+                int actualDamage = npc.SimpleStrikeNPC(scaledDamage, dir, crit, Projectile.knockBack, DamageClass.Melee);
                 npc.HitSound = savedSound;
 
                 Owner.addDPS(actualDamage);

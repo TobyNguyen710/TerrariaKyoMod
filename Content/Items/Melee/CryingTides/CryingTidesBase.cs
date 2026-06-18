@@ -14,8 +14,11 @@ namespace KyoMod.Content.Items.Melee.CryingTides
         public int Combo = 0;
         public int ActiveForm = 0;
         public bool PanelOpen = false;
-        private int comboCooldown = 0;
-        private int skillCooldown = 0;
+        private int comboCooldown  = 0;
+        private int skillCooldown  = 0;
+        private int comboIdleTimer = 0;
+
+        private const int ComboResetFrames = 120; // 2 seconds
 
         public const int MaxHavocStacks = 20;
 
@@ -42,7 +45,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
             Item.UseSound = null;
             Item.autoReuse = true;
             Item.shoot = ProjectileID.PurificationPowder;
-            Item.shootSpeed = 12f;
+            Item.shootSpeed = 25f;
         }
 
         public override bool AltFunctionUse(Player player) => HasSkill;
@@ -76,6 +79,14 @@ namespace KyoMod.Content.Items.Melee.CryingTides
                 comboCooldown--;
             if (skillCooldown > 0)
                 skillCooldown--;
+
+            if (swingActive || Combo == 0)
+                comboIdleTimer = 0;
+            else if (++comboIdleTimer >= ComboResetFrames)
+            {
+                Combo = 0;
+                comboIdleTimer = 0;
+            }
         }
 
         public override bool CanUseItem(Player player)
@@ -100,9 +111,26 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
         public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
         {
-            if (HasSkill && player.altFunctionUse == 2 && ActiveForm == 0)
+            if (HasSkill && player.altFunctionUse == 2)
             {
-                Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI, SwordScale);
+                if (ActiveForm == 0)
+                {
+                    Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI, SwordScale);
+                }
+                else if (ActiveForm == 1 && HasHavocForm)
+                {
+                    var kyoPlayer = player.GetModPlayer<CryingTidesPlayer>();
+                    int tier     = kyoPlayer.HavocStacks >= MaxHavocStacks        ? 2
+                                 : kyoPlayer.HavocStacks >= MaxHavocStacks / 2    ? 1 : 0;
+                    int spinDir  = velocity.X >= 0f ? 1 : -1;
+
+                    Projectile.NewProjectile(source, player.Center, velocity,
+                        ModContent.ProjectileType<HavocSkillScythe>(),
+                        (int)(damage * 2.5f), knockback,
+                        player.whoAmI, spinDir, tier, SwordScale);
+
+                    kyoPlayer.HavocStacks = 0;
+                }
                 skillCooldown = SkillCooldownMax;
                 return false;
             }
