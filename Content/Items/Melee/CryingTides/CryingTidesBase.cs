@@ -24,8 +24,8 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
         private const int SwingCooldown = 5;
         private const int SpinCooldown = 20;
-        private const int SkillCooldownSpectro = 80;
-        private const int SkillCooldownHavoc   = 80;
+        private const int SkillCooldownSpectro = 540;
+        private const int SkillCooldownHavoc   = 540;
 
         protected virtual bool HasSkill => false;
         protected virtual float SwordScale => 1f;
@@ -127,7 +127,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
                     Projectile.NewProjectile(source, player.Center, velocity,
                         ModContent.ProjectileType<HavocSkillScythe>(),
-                        (int)(damage * 2.5f), knockback,
+                        (int)(damage * 3f), knockback,
                         player.whoAmI, spinDir, tier, SwordScale);
 
                     kyoPlayer.HavocStacks = 0;

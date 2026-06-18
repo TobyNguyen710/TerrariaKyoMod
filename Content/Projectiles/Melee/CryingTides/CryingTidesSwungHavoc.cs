@@ -236,7 +236,7 @@ namespace KyoMod.Content.Projectiles.Melee
                     NpcIndex         = target.whoAmI,
                     Timer            = 20,
                     HitsLeft         = 1,
-                    DamageMultiplier = 0.5f,
+                    DamageMultiplier = 0.75f,
                 });
             }
             else if (ComboState == 2)
@@ -246,7 +246,7 @@ namespace KyoMod.Content.Projectiles.Melee
                     NpcIndex         = target.whoAmI,
                     Timer            = 48,
                     HitsLeft         = 3,
-                    DamageMultiplier = 0.5f,
+                    DamageMultiplier = 0.75f,
                 });
             }
 
