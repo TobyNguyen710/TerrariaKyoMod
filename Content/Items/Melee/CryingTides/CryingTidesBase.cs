@@ -53,8 +53,10 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
         public override void HoldItem(Player player)
         {
-            // Toggle panel on middle click
-            if (Main.myPlayer == player.whoAmI && Main.mouseMiddle && Main.mouseMiddleRelease)
+            // Toggle panel on middle click — only available once Havoc form unlocks
+            if (!HasHavocForm)
+                PanelOpen = false;
+            else if (Main.myPlayer == player.whoAmI && Main.mouseMiddle && Main.mouseMiddleRelease)
                 PanelOpen = !PanelOpen;
 
             // Maintain panel projectile only while open
@@ -116,7 +118,8 @@ namespace KyoMod.Content.Items.Melee.CryingTides
             {
                 if (ActiveForm == 0)
                 {
-                    Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI, SwordScale);
+                    float bonusRadius = HasHavocForm ? 100f : 0f;
+                    Projectile.NewProjectile(source, player.Center, Vector2.Zero, ModContent.ProjectileType<SpectroSlowPulse>(), 0, 0f, player.whoAmI, SwordScale, bonusRadius);
                 }
                 else if (ActiveForm == 1 && HasHavocForm)
                 {

@@ -19,8 +19,9 @@ namespace KyoMod.Content.Projectiles.Melee
 		private const int SlowDuration = 240; // 4 seconds
 
 		private float Progress => 1f - Projectile.timeLeft / (float)Duration;
-		private float CurrentRadius => Progress * MaxRadius;
-		private float TierScale => Projectile.ai[0] > 0f ? Projectile.ai[0] : 1f;
+		private float CurrentRadius => Progress * (MaxRadius + BonusRadius);
+		private float TierScale   => Projectile.ai[0] > 0f ? Projectile.ai[0] : 1f;
+		private float BonusRadius => Projectile.ai[1];
 
 		public override void SetDefaults()
 		{

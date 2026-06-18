@@ -2,6 +2,7 @@ using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
+using Terraria.Audio;
 using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -48,6 +49,21 @@ namespace KyoMod.Content.Projectiles.Melee
             }
 
             Lighting.AddLight(Projectile.Center, 0.9f, 0.65f, 0.1f);
+        }
+
+        public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
+        {
+            if (Main.netMode == NetmodeID.Server) return;
+
+            SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordImpactLight") { PitchVariance = 0.25f }, target.Center);
+
+            for (int i = 0; i < 10; i++)
+            {
+                Dust d = Dust.NewDustDirect(target.Center, 0, 0, DustID.GoldFlame);
+                d.velocity  = Projectile.velocity.ToRotation().ToRotationVector2() * Main.rand.NextFloat(3f, 7f) + Main.rand.NextFloat(MathHelper.TwoPi).ToRotationVector2() * Main.rand.NextFloat(1f, 3f);
+                d.scale     = Main.rand.NextFloat(0.8f, 1.5f);
+                d.noGravity = true;
+            }
         }
 
         public override bool PreDraw(ref Color lightColor)
