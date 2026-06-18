@@ -24,7 +24,8 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
         private const int SwingCooldown = 5;
         private const int SpinCooldown = 20;
-        private const int SkillCooldownMax = 80;
+        private const int SkillCooldownSpectro = 80;
+        private const int SkillCooldownHavoc   = 80;
 
         protected virtual bool HasSkill => false;
         protected virtual float SwordScale => 1f;
@@ -131,7 +132,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 
                     kyoPlayer.HavocStacks = 0;
                 }
-                skillCooldown = SkillCooldownMax;
+                skillCooldown = ActiveForm == 1 ? SkillCooldownHavoc : SkillCooldownSpectro;
                 return false;
             }
 
@@ -140,6 +141,15 @@ namespace KyoMod.Content.Items.Melee.CryingTides
                 : ModContent.ProjectileType<CryingTidesSwungSpectro>();
 
             Projectile.NewProjectile(source, player.Center, velocity, projType, damage, knockback, player.whoAmI, Combo, SwordScale, SwordArc);
+
+            // Golden beam on every Spectro swing, post-WoF only
+            if (ActiveForm == 0 && HasHavocForm)
+            {
+                Vector2 beamVel = Vector2.Normalize(velocity) * 30f;
+                Projectile.NewProjectile(source, player.Center, beamVel,
+                    ModContent.ProjectileType<SpectroBeam>(), damage / 2, 0f, player.whoAmI);
+            }
+
             int prevCombo = Combo;
             Combo = (Combo + 1) % 3;
             comboCooldown = prevCombo == 2 ? SpinCooldown : SwingCooldown;

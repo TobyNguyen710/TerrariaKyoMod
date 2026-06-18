@@ -16,9 +16,10 @@ namespace KyoMod.Content.Projectiles.Melee
         private int   TextureTier => (int)Projectile.ai[1];
         private float SwordScale  => Projectile.ai[2] > 0f ? Projectile.ai[2] : 1f;
 
-        private const int   Lifetime  = 25;
-        private const float SpinSpeed = 0.45f;
-        private const int   FadeFrames = 7; // fade out over last N frames
+        private const int   Lifetime   = 25;
+        private const float SpinSpeed  = 0.45f;
+        private const int   FadeFrames = 7;
+        private const float HitRadius  = 22f; // base radius — multiplied by SwordScale * 3 to match draw scale
 
         public override string Texture => "KyoMod/Content/Projectiles/Melee/CryingTides/CryingTidesScytheNoStack";
 
@@ -62,6 +63,15 @@ namespace KyoMod.Content.Projectiles.Melee
             // Crimson point light
             float glow = TextureTier >= 2 ? 1.0f : TextureTier >= 1 ? 0.55f : 0.25f;
             Lighting.AddLight(Projectile.Center, glow * 0.85f, glow * 0.10f, glow * 0.06f);
+        }
+
+        public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
+        {
+            float radius = HitRadius * SwordScale * 3f;
+            Vector2 closest = new(
+                MathHelper.Clamp(Projectile.Center.X, targetHitbox.Left, targetHitbox.Right),
+                MathHelper.Clamp(Projectile.Center.Y, targetHitbox.Top, targetHitbox.Bottom));
+            return Vector2.DistanceSquared(Projectile.Center, closest) <= radius * radius;
         }
 
         public override bool PreDraw(ref Color lightColor)
