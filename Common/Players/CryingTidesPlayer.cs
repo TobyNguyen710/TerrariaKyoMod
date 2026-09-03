@@ -37,5 +37,6 @@ namespace KyoMod.Common.Players
                 HavocStacks--;
             }
         }
+
     }
 }

@@ -60,4 +60,9 @@ Buffs: {
 		DisplayName: Temporal Slow
 		Description: Time itself resists your movement
 	}
+
+	CryingTidesSkillCooldown: {
+		DisplayName: Crying Tides Skill Cooldown
+		Description: Mods.KyoMod.Buffs.CryingTidesSkillCooldown.Description
+	}
 }

@@ -6,7 +6,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 	public class CryingTidesPostEvilBoss : CryingTidesBase
 	{
 		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
-		protected override bool HasSkill => true;
+		public override bool HasSkill => true;
 		protected override float SwordScale => 1.0f;
 		protected override float SwordArc => 1.45f;
 

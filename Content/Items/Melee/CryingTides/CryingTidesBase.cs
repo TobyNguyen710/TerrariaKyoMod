@@ -1,5 +1,6 @@
 using System.Linq;
 using KyoMod.Common.Players;
+using KyoMod.Content.Buffs;
 using KyoMod.Content.Projectiles.Melee;
 using Microsoft.Xna.Framework;
 using Terraria;
@@ -27,10 +28,16 @@ namespace KyoMod.Content.Items.Melee.CryingTides
         private const int SkillCooldownSpectro = 540;
         private const int SkillCooldownHavoc   = 540;
 
-        protected virtual bool HasSkill => false;
+        public virtual bool HasSkill => false;
         protected virtual float SwordScale => 1f;
         protected virtual float SwordArc => 1f;
         public virtual bool HasHavocForm => false;
+
+        // 0 = ready, 1 = just used
+        public float SkillCooldownRatio => HasSkill
+            ? skillCooldown / (float)(ActiveForm == 1 ? SkillCooldownHavoc : SkillCooldownSpectro)
+            : 0f;
+        public bool SkillIsReady => skillCooldown <= 0;
 
         public override void SetDefaults()
         {
@@ -136,6 +143,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
                     kyoPlayer.HavocStacks = 0;
                 }
                 skillCooldown = ActiveForm == 1 ? SkillCooldownHavoc : SkillCooldownSpectro;
+                player.AddBuff(ModContent.BuffType<CryingTidesSkillCooldown>(), skillCooldown);
                 return false;
             }
 
