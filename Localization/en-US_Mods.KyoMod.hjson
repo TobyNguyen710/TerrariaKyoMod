@@ -55,6 +55,7 @@ Projectiles: {
 	SpectroBeam.DisplayName: Spectro Beam
 	HavocSlashArc.DisplayName: Havoc Slash Arc
 	SpectroSlashArc.DisplayName: Spectro Slash Arc
+	SpectroUltimateBeam.DisplayName: Spectro Ultimate Beam
 }
 
 Buffs: {
@@ -63,8 +64,15 @@ Buffs: {
 		Description: Time itself resists your movement
 	}
 
+	TemporalFreeze: {
+		DisplayName: Temporal Freeze
+		Description: Time has stopped completely
+	}
+
 	CryingTidesSkillCooldown: {
 		DisplayName: Crying Tides Skill Cooldown
 		Description: Mods.KyoMod.Buffs.CryingTidesSkillCooldown.Description
 	}
 }
+
+Keybinds.CryingTidesUltimate.DisplayName: Crying Tides Ultimate

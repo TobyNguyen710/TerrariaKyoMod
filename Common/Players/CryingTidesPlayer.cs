@@ -1,6 +1,9 @@
 using System;
 using KyoMod.Content.Items.Melee.CryingTides;
+using KyoMod.Content.Projectiles.Melee;
+using Microsoft.Xna.Framework;
 using Terraria;
+using Terraria.GameInput;
 using Terraria.ModLoader;
 
 namespace KyoMod.Common.Players
@@ -38,5 +41,17 @@ namespace KyoMod.Common.Players
             }
         }
 
+        // Temporary test wiring for the PostMech "ultimate" ability (see
+        // docs/CryingTides-SlashEffect-DesignDoc.md §10) — hardcoded to the PostWoF item and the
+        // Spectro beam specifically, since PostMech's item/trigger design doesn't exist yet.
+        public override void ProcessTriggers(TriggersSet triggersSet)
+        {
+            if (!KyoMod.CryingTidesUltimateKeybind.JustPressed) return;
+            if (Player.HeldItem?.ModItem is not CryingTidesPostWoF) return;
+
+            Vector2 direction = (Main.MouseWorld - Player.Center).SafeNormalize(Vector2.UnitX * Player.direction);
+            Projectile.NewProjectile(Player.GetSource_Misc("CryingTidesUltimate"), Player.Center, direction,
+                ModContent.ProjectileType<SpectroUltimateBeam>(), 0, 0f, Player.whoAmI);
+        }
     }
 }
