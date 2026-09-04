@@ -19,7 +19,7 @@ namespace KyoMod.Content.Projectiles.Melee
         private const int FadeFrames = 9;
         private const int Lifetime   = GrowFrames + HoldFrames + FadeFrames;
 
-        private const int   Segments = 128;
+        private const int   Segments = 256;
         // Equal exponents split the arc perfectly 50/50 — a symmetric bump peaking exactly in the
         // middle, zero slope at both tips (both exponents > 1 avoids a kink at either end).
         // One formula for the whole arc — no stitched pieces.
@@ -90,13 +90,21 @@ namespace KyoMod.Content.Projectiles.Melee
         private static readonly float BumpPeakT   = BumpP / (BumpP + BumpQ);
         private static readonly float BumpPeakVal = MathF.Pow(BumpPeakT, BumpP) * MathF.Pow(1f - BumpPeakT, BumpQ);
 
+        // Full spins stay at a fixed uniform thickness through the middle, but taper down to meet the
+        // outer line at the very start/end of the sweep (the seam where the near-360° gap sits),
+        // instead of ending on a blunt flat-cut edge.
+        private const float SpinEdgeFade = 0.15f;
+
         // Thin at both tips, swelling smoothly to its widest around 75% of the way through the arc —
         // a single continuous crescent-moon curve.
-        // Full spins skip this entirely and use their own fixed uniform thickness.
         private float ThicknessAt(float t)
         {
             if (IsFullSpin)
-                return SpinThickness;
+            {
+                float edge = MathHelper.Clamp(Math.Min(t, 1f - t) / SpinEdgeFade, 0f, 1f);
+                edge = edge * edge * (3f - 2f * edge);
+                return SpinThickness * edge;
+            }
 
             float raw        = MathF.Pow(t, BumpP) * MathF.Pow(1f - t, BumpQ);
             float normalized = BumpPeakVal > 0f ? raw / BumpPeakVal : 0f;
@@ -125,14 +133,19 @@ namespace KyoMod.Content.Projectiles.Melee
             float growT  = MathHelper.Clamp(age / (float)GrowFrames, 0f, 1f);
             float reveal = 1f - (1f - growT) * (1f - growT); // ease-out
 
+            // Disappears the same way it appears: sequentially, not a uniform whole-shape fade. The
+            // start of the arc (t=0) retracts first and the gap chases forward until it catches the
+            // tip, like a tail being eaten. The boundary itself is a soft per-vertex alpha fade (not
+            // a hard vertex-count truncation) so the erosion edge dissolves rather than looking like a
+            // sharp cut sliced through the mesh each frame.
             float fadeStart = GrowFrames + HoldFrames;
             float fadeT     = age <= fadeStart ? 0f : MathHelper.Clamp((age - fadeStart) / (float)FadeFrames, 0f, 1f);
-            float globalAlpha = 1f - fadeT * fadeT;
-            if (globalAlpha <= 0f)
+            float retractT  = 1f - (1f - fadeT) * (1f - fadeT); // ease-out, matches the reveal's feel
+            if (retractT >= 1f)
                 return false;
 
-            Vector2 center           = Projectile.Center - Main.screenPosition;
-            int     visibleSegments  = Math.Max(1, (int)(Segments * reveal));
+            Vector2 center     = Projectile.Center - Main.screenPosition;
+            int     endSegment = Math.Max(1, (int)(Segments * reveal));
 
             GraphicsDevice device = Main.spriteBatch.GraphicsDevice;
             BasicEffect    effect = GetEffect(device);
@@ -149,16 +162,16 @@ namespace KyoMod.Content.Projectiles.Melee
             // edge is capped at Radius (the actual hit boundary) and it builds inward from there, so
             // nothing visible ever reaches further out than what can actually be hit.
             device.BlendState = BlendState.AlphaBlend;
-            DrawRibbon(device, effect, center, visibleSegments,
+            DrawRibbon(device, effect, center, endSegment, retractT,
                 widthAt: ThicknessAt, outerInset: 0f,
-                outerColor: BodyColor * (globalAlpha * 0.85f), innerColor: BodyColor * (globalAlpha * 0.15f));
+                outerColor: BodyColor * 0.85f, innerColor: BodyColor * 0f);
 
             // Inner core ribbon: narrow, bright, additive, hugging the same outer boundary — the crisp
             // highlight edge tracing the top of the crescent, without extending past the hit range.
             device.BlendState = BlendState.Additive;
-            DrawRibbon(device, effect, center, visibleSegments,
+            DrawRibbon(device, effect, center, endSegment, retractT,
                 widthAt: CoreWidthAt, outerInset: 0f,
-                outerColor: CoreColor * (globalAlpha * 0.9f), innerColor: CoreColor * (globalAlpha * 0.05f));
+                outerColor: CoreColor * 0.9f, innerColor: CoreColor * 0f);
 
             device.BlendState       = BlendState.AlphaBlend;
             device.RasterizerState  = savedRasterizer;
@@ -168,19 +181,34 @@ namespace KyoMod.Content.Projectiles.Melee
             return false;
         }
 
-        // Builds a ribbon strip following the arc: each sample contributes an outer and inner vertex,
-        // so the GPU interpolates color/width smoothly with no visible seams. The outer vertex never
-        // sits further from center than (Radius - outerInset), keeping the visual within hit range.
-        private void DrawRibbon(GraphicsDevice device, BasicEffect effect, Vector2 center, int visibleSegments,
+        // How much of the arc (as a fraction of the full sweep) the retracting edge takes to fade
+        // from fully transparent to fully opaque — a soft dissolve band instead of a hard cutoff.
+        private const float RetractEdgeFade = 0.08f;
+
+        // Builds a ribbon strip following the whole arc: each sample contributes an outer and inner
+        // vertex, so the GPU interpolates color/width smoothly with no visible seams. The outer vertex
+        // never sits further from center than (Radius - outerInset), keeping the visual within hit
+        // range. Vertices behind the retracting boundary (t < retractT) fade out smoothly across
+        // RetractEdgeFade rather than being dropped from the mesh outright.
+        private void DrawRibbon(GraphicsDevice device, BasicEffect effect, Vector2 center,
+            int endSegment, float retractT,
             Func<float, float> widthAt, float outerInset, Color outerColor, Color innerColor)
         {
-            int vertCount = (visibleSegments + 1) * 2;
+            int vertCount = (endSegment + 1) * 2;
             var verts = new VertexPositionColor[vertCount];
 
-            for (int i = 0; i <= visibleSegments; i++)
+            for (int i = 0; i <= endSegment; i++)
             {
                 float t         = i / (float)Segments;
                 float thickness = widthAt(t) + MinRenderThickness;
+                // Before retraction actually starts (retractT == 0), stay fully opaque everywhere —
+                // otherwise this formula would permanently fade the first RetractEdgeFade fraction of
+                // the arc even during the grow/hold phase, purely because it sits near t=0. That made
+                // the start tip look "eaten away" even when nothing was disappearing yet, while the end
+                // tip (never close to t=0) never got this treatment — an unintended asymmetry.
+                float erosion = retractT <= 0f
+                    ? 1f
+                    : MathHelper.Clamp((t - retractT) / RetractEdgeFade, 0f, 1f);
 
                 Vector2 normal   = (StartAngle + Sweep * t).ToRotationVector2();
                 float   outerLen = Radius - outerInset;
@@ -189,8 +217,8 @@ namespace KyoMod.Content.Projectiles.Melee
                 Vector2 outerPos = center + normal * outerLen;
                 Vector2 innerPos = center + normal * innerLen;
 
-                verts[i * 2]     = new VertexPositionColor(new Vector3(outerPos, 0f), outerColor);
-                verts[i * 2 + 1] = new VertexPositionColor(new Vector3(innerPos, 0f), innerColor);
+                verts[i * 2]     = new VertexPositionColor(new Vector3(outerPos, 0f), outerColor * erosion);
+                verts[i * 2 + 1] = new VertexPositionColor(new Vector3(innerPos, 0f), innerColor * erosion);
             }
 
             foreach (EffectPass pass in effect.CurrentTechnique.Passes)
