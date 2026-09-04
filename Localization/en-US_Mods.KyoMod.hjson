@@ -53,6 +53,8 @@ Projectiles: {
 	HavocSlashMark.DisplayName: Havoc Slash Mark
 	HavocSkillScythe.DisplayName: Havoc Skill Scythe
 	SpectroBeam.DisplayName: Spectro Beam
+	HavocSlashArc.DisplayName: Havoc Slash Arc
+	SpectroSlashArc.DisplayName: Spectro Slash Arc
 }
 
 Buffs: {

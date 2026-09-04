@@ -11,6 +11,14 @@ namespace KyoMod.Content.Projectiles.Melee
 	{
 		public override string Texture => "KyoMod/Content/Items/Melee/CryingTides/CryingTides";
 
+		protected override float BladeLength => 70f;
+
+		protected override void OnSpawnSlashArc(float startAngle, float sweep)
+		{
+			Projectile.NewProjectile(Projectile.GetSource_FromThis(), Owner.Center + direction * HoldDistance, Vector2.Zero,
+				ModContent.ProjectileType<SpectroSlashArc>(), 0, 0f, Projectile.owner, startAngle, sweep, SlashRadius);
+		}
+
 		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (Main.netMode == NetmodeID.Server) return;

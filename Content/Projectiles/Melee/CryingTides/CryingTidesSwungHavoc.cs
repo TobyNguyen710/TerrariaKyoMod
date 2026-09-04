@@ -182,7 +182,7 @@ namespace KyoMod.Content.Projectiles.Melee
         {
             if (HavocProgress == 0f || ghostDelayActive) return false;
 
-            float bladeLen = BladeLength * Projectile.scale;
+            float bladeLen = SlashRadius;
             Vector2 center = Owner.Center;
             float cx = MathHelper.Clamp(center.X, targetHitbox.Left, targetHitbox.Right);
             float cy = MathHelper.Clamp(center.Y, targetHitbox.Top, targetHitbox.Bottom);
@@ -276,6 +276,27 @@ namespace KyoMod.Content.Projectiles.Melee
                 Main.projectile[markIdx].ai[1] = 50f;
             }
         }
+
+        protected override (float from, float to) GetSwingAngleRange(float baseAngle)
+        {
+            return ComboState switch
+            {
+                0 => (baseAngle - HalfArc * lockedDirection, baseAngle + HalfArc * lockedDirection),
+                1 => (baseAngle + HalfArcCombo1 * lockedDirection, baseAngle - HalfArcCombo1 * lockedDirection),
+                2 => (baseAngle - MathHelper.PiOver2 * lockedDirection, baseAngle - MathHelper.PiOver2 * lockedDirection + MathHelper.Pi * (400f / 180f) * lockedDirection),
+                _ => (baseAngle, baseAngle),
+            };
+        }
+
+        protected override void OnSpawnSlashArc(float startAngle, float sweep)
+        {
+            Projectile.NewProjectile(Projectile.GetSource_FromThis(), Owner.Center + direction * HoldDistance, Vector2.Zero,
+                ModContent.ProjectileType<HavocSlashArc>(), 0, 0f, Projectile.owner, startAngle, sweep, SlashRadius);
+        }
+
+        // Havoc holds for most of the swing duration (quick-draw style) before the blade actually
+        // moves — wait for that hold to end so the cosmetic slash doesn't play out during the hold.
+        protected override bool ShouldSpawnSlashArcNow() => HavocProgress > 0f;
 
         protected override void UpdateRotation(float baseAngle, float eased)
         {
