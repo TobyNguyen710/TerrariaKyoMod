@@ -19,14 +19,32 @@ namespace KyoMod.Content.Projectiles.Melee
         private const int FadeFrames = 9;
         private const int Lifetime   = GrowFrames + HoldFrames + FadeFrames;
 
-        private const int   Segments     = 128;
-        private const float ThickenEnd   = 0.62f; // arc-length fraction where thickness peaks
-        private const float TaperStart   = 0.74f; // fraction where the sharp tip taper begins
-        private const float MinThickness = 5f;
+        private const int   Segments = 128;
+        // Equal exponents split the arc perfectly 50/50 — a symmetric bump peaking exactly in the
+        // middle, zero slope at both tips (both exponents > 1 avoids a kink at either end).
+        // One formula for the whole arc — no stitched pieces.
+        private const float BumpP = 2f;
+        private const float BumpQ = 2f;
+
+        // Added (never clamped) to the *rendered* geometry width only, right where vertices are built
+        // — never inside ThicknessAt() itself, which stays a mathematically pure curve reaching zero.
+        // A hard Math.Max floor would create a slope discontinuity exactly where the natural curve
+        // crosses it (flat below, curved above) — a real visible crease. Adding a constant everywhere
+        // keeps the curve perfectly smooth while guaranteeing the strip's width never hits literal
+        // zero, which is what produces near-degenerate triangles at the tips — a known source of GPU
+        // rasterization artifacts regardless of how smooth the underlying math is. Onikiri's own arc
+        // renderers do the same: their width formula can reach zero, but the geometry they emit never
+        // does.
+        private const float MinRenderThickness = 2f;
 
         protected abstract Color CoreColor { get; }
         protected abstract Color BodyColor { get; }
-        protected virtual  float MaxThickness => 46f;
+        protected virtual  float MaxThickness => 55f;  // belly thickness for normal (tapered) swings
+        protected virtual  float SpinThickness => 50f; // uniform thickness for a full-spin swing
+        protected virtual  float CoreWidth     => 14f; // roughly constant highlight width — decoupled
+                                                        // from the body's taper, so raising MaxThickness
+                                                        // doesn't also balloon the bright rim into a
+                                                        // swollen blob at the belly
 
         private float StartAngle => Projectile.ai[0];
         private float Sweep      => Projectile.ai[1];
@@ -62,41 +80,43 @@ namespace KyoMod.Content.Projectiles.Melee
         public override bool? CanHitNPC(NPC target) => false;
         public override bool CanHitPlayer(Player target) => false;
 
-        // Reference sweep matching a normal (non-spin) swing's arc width — sweeps at or below this
-        // keep today's base thickness; wider sweeps (e.g. a full spin) scale thicker, up to the cap.
-        private static readonly float ReferenceSweepRadians = MathHelper.Pi * 200f / 180f;
-        private const float MaxSweepThicknessScale = 2.4f;
-
-        private float SweepThicknessScale
-        {
-            get
-            {
-                float factor = Math.Abs(Sweep) / ReferenceSweepRadians;
-                return MathHelper.Clamp(factor, 1f, MaxSweepThicknessScale);
-            }
-        }
-
         // A sweep this wide is effectively a full spin, not a directional slash — tapering it would
         // falsely imply a "thick side" that doesn't correspond to anything about a 360° swing.
         private static readonly float FullSpinThreshold = MathHelper.Pi * 300f / 180f;
         private bool IsFullSpin => Math.Abs(Sweep) >= FullSpinThreshold;
 
-        // Thin at the start, swells through the belly, then tapers to a sharp point at the tip —
-        // not a symmetric bell curve, matching a crescent-slash silhouette rather than a rounded tube.
-        // Full spins skip the taper entirely and use uniform thickness all the way around.
+        // Zero at both ends, peaking at BumpP/(BumpP+BumpQ) — one smooth curve for the whole arc,
+        // not two separate ramps stitched at a point. Normalized so the peak equals 1.
+        private static readonly float BumpPeakT   = BumpP / (BumpP + BumpQ);
+        private static readonly float BumpPeakVal = MathF.Pow(BumpPeakT, BumpP) * MathF.Pow(1f - BumpPeakT, BumpQ);
+
+        // Thin at both tips, swelling smoothly to its widest around 75% of the way through the arc —
+        // a single continuous crescent-moon curve.
+        // Full spins skip this entirely and use their own fixed uniform thickness.
         private float ThicknessAt(float t)
         {
             if (IsFullSpin)
-                return MaxThickness * SweepThicknessScale;
+                return SpinThickness;
 
-            float grow = MathHelper.Clamp(t / ThickenEnd, 0f, 1f);
-            grow = grow * grow * (3f - 2f * grow);
+            float raw        = MathF.Pow(t, BumpP) * MathF.Pow(1f - t, BumpQ);
+            float normalized = BumpPeakVal > 0f ? raw / BumpPeakVal : 0f;
 
-            float shrink = t <= TaperStart ? 0f : MathHelper.Clamp((t - TaperStart) / (1f - TaperStart), 0f, 1f);
-            shrink = shrink * shrink * (3f - 2f * shrink);
+            return MaxThickness * normalized;
+        }
 
-            float thickness = MathHelper.Lerp(MinThickness, MaxThickness, grow) * (1f - shrink);
-            return thickness * SweepThicknessScale;
+        // Independent of ThicknessAt: stays a roughly constant thin streak along the whole arc,
+        // only tapering to nothing right at the very tips (where the body also vanishes) instead of
+        // swelling in the belly the way the body does.
+        private const float CoreEdgeFade = 0.08f;
+
+        private float CoreWidthAt(float t)
+        {
+            if (IsFullSpin)
+                return CoreWidth;
+
+            float edge = MathHelper.Clamp(Math.Min(t, 1f - t) / CoreEdgeFade, 0f, 1f);
+            edge = edge * edge * (3f - 2f * edge);
+            return CoreWidth * edge;
         }
 
         public override bool PreDraw(ref Color lightColor)
@@ -130,14 +150,14 @@ namespace KyoMod.Content.Projectiles.Melee
             // nothing visible ever reaches further out than what can actually be hit.
             device.BlendState = BlendState.AlphaBlend;
             DrawRibbon(device, effect, center, visibleSegments,
-                widthMul: 1.0f, outerInset: 0f,
+                widthAt: ThicknessAt, outerInset: 0f,
                 outerColor: BodyColor * (globalAlpha * 0.85f), innerColor: BodyColor * (globalAlpha * 0.15f));
 
             // Inner core ribbon: narrow, bright, additive, hugging the same outer boundary — the crisp
             // highlight edge tracing the top of the crescent, without extending past the hit range.
             device.BlendState = BlendState.Additive;
             DrawRibbon(device, effect, center, visibleSegments,
-                widthMul: 0.32f, outerInset: 0f,
+                widthAt: CoreWidthAt, outerInset: 0f,
                 outerColor: CoreColor * (globalAlpha * 0.9f), innerColor: CoreColor * (globalAlpha * 0.05f));
 
             device.BlendState       = BlendState.AlphaBlend;
@@ -152,7 +172,7 @@ namespace KyoMod.Content.Projectiles.Melee
         // so the GPU interpolates color/width smoothly with no visible seams. The outer vertex never
         // sits further from center than (Radius - outerInset), keeping the visual within hit range.
         private void DrawRibbon(GraphicsDevice device, BasicEffect effect, Vector2 center, int visibleSegments,
-            float widthMul, float outerInset, Color outerColor, Color innerColor)
+            Func<float, float> widthAt, float outerInset, Color outerColor, Color innerColor)
         {
             int vertCount = (visibleSegments + 1) * 2;
             var verts = new VertexPositionColor[vertCount];
@@ -160,9 +180,7 @@ namespace KyoMod.Content.Projectiles.Melee
             for (int i = 0; i <= visibleSegments; i++)
             {
                 float t         = i / (float)Segments;
-                float thickness = ThicknessAt(t) * widthMul;
-                if (thickness < 0.5f)
-                    thickness = 0f;
+                float thickness = widthAt(t) + MinRenderThickness;
 
                 Vector2 normal   = (StartAngle + Sweep * t).ToRotationVector2();
                 float   outerLen = Radius - outerInset;
