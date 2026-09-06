@@ -21,7 +21,7 @@ namespace KyoMod.Content.Projectiles.Melee
         private const float HalfArcCombo1 = MathHelper.Pi * 120f / 180f; // combo 1: 120° per side = 240° total
 
         protected override float MaxTimeNormal => NormalTime;
-        protected override float MaxTimeSpin   => 72f;
+        protected override float MaxTimeSpin   => 67f;
         protected override float BladeLength   => 52f;
 
         private float HavocProgress

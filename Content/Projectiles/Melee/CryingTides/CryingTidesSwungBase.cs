@@ -24,8 +24,8 @@ namespace KyoMod.Content.Projectiles.Melee
 		protected const float BaseSwingWidth = MathHelper.PiOver2 * 2.2f;
 		protected const float HoldDistance = 5f;
 
-		protected virtual float MaxTimeNormal => 15f;
-		protected virtual float MaxTimeSpin => 25f;
+		protected virtual float MaxTimeNormal => 10f;
+		protected virtual float MaxTimeSpin => 15f;
 		protected virtual float BladeLength => 85f;
 
 		protected float ActualMaxTime => ComboState == 2 ? MaxTimeSpin : MaxTimeNormal;

@@ -12,7 +12,7 @@ namespace KyoMod.Content.Items.Melee.CryingTides
 		public override void SetDefaults()
 		{
 			base.SetDefaults();
-			Item.damage = 90;
+			Item.damage = 80;
 			Item.crit = 10;
 			Item.rare = ItemRarityID.Green;
 			Item.value = Item.buyPrice(gold: 5);

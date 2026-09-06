@@ -14,10 +14,22 @@ namespace KyoMod.Content.Projectiles.Melee
     {
         public override string Texture => "KyoMod/Content/Projectiles/Melee/CryingTides/CryingTidesScytheNoStack";
 
-        private const int GrowFrames = 5;
-        private const int HoldFrames = 10;
-        private const int FadeFrames = 9;
-        private const int Lifetime   = GrowFrames + HoldFrames + FadeFrames;
+        // Lifecycle mirrors Onikiri's OniAnnihilateArc.fx structure: a near-instant directional
+        // wipe-in, then a long window where a per-pixel noise dissolve creeps in (barely visible at
+        // first, more holes appearing over time — no distinct "nothing changes" hold phase), and a
+        // final hard alpha ramp that guarantees the arc is fully gone by end of life regardless of
+        // where the dissolve pattern happened to land. Total matches the previously-tuned 24-frame
+        // on-screen duration (was Grow5+Hold10+Fade9). Tried making this scale to the swing's actual
+        // remaining duration (see git history) — reverted per explicit request in favor of tuning
+        // swing speed/damage on the weapon side instead of the visual side.
+        private const int GrowFrames     = 8;
+        private const int ErodeFrames    = 14;
+        private const int HardFadeFrames = 5;
+        private const int Lifetime       = GrowFrames + ErodeFrames + HardFadeFrames;
+
+        // Sweeps uGrowEdge from -band to 1+band so the wipe fully clears both tips by the end of
+        // the grow phase — must match growBand in SlashInk.fx.
+        private const float GrowEdgeBand = 0.05f;
 
         private const int   Segments = 256;
         // Equal exponents split the arc perfectly 50/50 — a symmetric bump peaking exactly in the
@@ -39,8 +51,8 @@ namespace KyoMod.Content.Projectiles.Melee
 
         protected abstract Color CoreColor { get; }
         protected abstract Color BodyColor { get; }
-        protected virtual  float MaxThickness => 55f;  // belly thickness for normal (tapered) swings
-        protected virtual  float SpinThickness => 50f; // uniform thickness for a full-spin swing
+        protected virtual  float MaxThickness => 70f;  // belly thickness for normal (tapered) swings
+        protected virtual  float SpinThickness => 64f; // uniform thickness for a full-spin swing
         protected virtual  float CoreWidth     => 14f; // roughly constant highlight width — decoupled
                                                         // from the body's taper, so raising MaxThickness
                                                         // doesn't also balloon the bright rim into a
@@ -50,21 +62,10 @@ namespace KyoMod.Content.Projectiles.Melee
         private float Sweep      => Projectile.ai[1];
         private float Radius     => Projectile.ai[2];
 
-        private static BasicEffect _effect;
-
-        private static BasicEffect GetEffect(GraphicsDevice device)
-        {
-            if (_effect == null || _effect.IsDisposed)
-            {
-                _effect = new BasicEffect(device)
-                {
-                    VertexColorEnabled = true,
-                    TextureEnabled     = false,
-                    World              = Matrix.Identity,
-                };
-            }
-            return _effect;
-        }
+        // Deterministic per-instance seed derived from the swing's own angle/sweep (no spare ai
+        // slot to store a random value in) — just needs to differ swing-to-swing, not be truly
+        // random, so the ink pattern doesn't look identical every time.
+        private float InkSeed => MathF.Abs((MathF.Sin(StartAngle * 12.9898f + Sweep * 78.233f) * 43758.5453f) % 1f);
 
         public override void SetDefaults()
         {
@@ -129,28 +130,42 @@ namespace KyoMod.Content.Projectiles.Melee
 
         public override bool PreDraw(ref Color lightColor)
         {
-            int   age    = Lifetime - Projectile.timeLeft;
-            float growT  = MathHelper.Clamp(age / (float)GrowFrames, 0f, 1f);
-            float reveal = 1f - (1f - growT) * (1f - growT); // ease-out
+            int age = Lifetime - Projectile.timeLeft;
 
-            // Disappears the same way it appears: sequentially, not a uniform whole-shape fade. The
-            // start of the arc (t=0) retracts first and the gap chases forward until it catches the
-            // tip, like a tail being eaten. The boundary itself is a soft per-vertex alpha fade (not
-            // a hard vertex-count truncation) so the erosion edge dissolves rather than looking like a
-            // sharp cut sliced through the mesh each frame.
-            float fadeStart = GrowFrames + HoldFrames;
-            float fadeT     = age <= fadeStart ? 0f : MathHelper.Clamp((age - fadeStart) / (float)FadeFrames, 0f, 1f);
-            float retractT  = 1f - (1f - fadeT) * (1f - fadeT); // ease-out, matches the reveal's feel
-            if (retractT >= 1f)
+            // Grow-in: a hard-edged directional wipe, computed entirely in the shader from where
+            // this edge value currently sits — not a mirror of the fade-out.
+            float growProgress = MathHelper.Clamp(age / (float)GrowFrames, 0f, 1f);
+            float growEdge     = MathHelper.Lerp(-GrowEdgeBand, 1f + GrowEdgeBand, growProgress);
+
+            // Erosion (per-pixel noise dissolve, see SlashInk.fx) starts creeping the moment grow-in
+            // ends and keeps ramping all the way through the hard-fade window too — eased so it's
+            // barely perceptible right after grow-in (reads as a hold) and accelerates toward the end.
+            float erodeAge = age - GrowFrames;
+            float erodeT   = MathHelper.Clamp(erodeAge / (float)(ErodeFrames + HardFadeFrames), 0f, 1f);
+            erodeT *= erodeT;
+
+            // Final hard backstop: guarantees the arc is fully invisible by end of life regardless of
+            // where the noise dissolve happened to leave stray surviving pixels.
+            float hardFadeAge = age - (GrowFrames + ErodeFrames);
+            float hardFade    = hardFadeAge <= 0f ? 1f : 1f - MathHelper.Clamp(hardFadeAge / (float)HardFadeFrames, 0f, 1f);
+            if (hardFade <= 0f)
                 return false;
 
-            Vector2 center     = Projectile.Center - Main.screenPosition;
-            int     endSegment = Math.Max(1, (int)(Segments * reveal));
+            Vector2 center   = Projectile.Center - Main.screenPosition;
+            Matrix  viewProj = Main.GameViewMatrix.TransformationMatrix
+                * Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1f, 1f);
+
+            Effect inkEffect = KyoMod.SlashInkShader?.Value;
+            if (inkEffect == null)
+                return false;
 
             GraphicsDevice device = Main.spriteBatch.GraphicsDevice;
-            BasicEffect    effect = GetEffect(device);
-            effect.View       = Main.GameViewMatrix.TransformationMatrix;
-            effect.Projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1f, 1f);
+            inkEffect.Parameters["uViewProj"]?.SetValue(viewProj);
+            inkEffect.Parameters["uTime"]?.SetValue(age / 60f);
+            inkEffect.Parameters["uSeed"]?.SetValue(InkSeed);
+            inkEffect.Parameters["uGrowEdge"]?.SetValue(growEdge);
+            inkEffect.Parameters["uErodeT"]?.SetValue(erodeT);
+            inkEffect.Parameters["uHardFade"]?.SetValue(hardFade);
 
             Main.spriteBatch.End();
 
@@ -160,16 +175,20 @@ namespace KyoMod.Content.Projectiles.Melee
 
             // Outer body ribbon: wide, dim, alpha-blended — the bulk of the crescent's fill. Its outer
             // edge is capped at Radius (the actual hit boundary) and it builds inward from there, so
-            // nothing visible ever reaches further out than what can actually be hit.
+            // nothing visible ever reaches further out than what can actually be hit. Full ink pass:
+            // banding/brush/dissolve all active.
             device.BlendState = BlendState.AlphaBlend;
-            DrawRibbon(device, effect, center, endSegment, retractT,
+            inkEffect.Parameters["uForceHot"]?.SetValue(0f);
+            DrawRibbon(device, inkEffect, center,
                 widthAt: ThicknessAt, outerInset: 0f,
                 outerColor: BodyColor * 0.85f, innerColor: BodyColor * 0f);
 
-            // Inner core ribbon: narrow, bright, additive, hugging the same outer boundary — the crisp
-            // highlight edge tracing the top of the crescent, without extending past the hit range.
+            // Inner core ribbon: narrow, bright, additive, hugging the same outer boundary — the
+            // "still sharp" highlight that survives the body's dissolve intact (Onikiri draws the
+            // same mesh twice this way: one full ink+dissolve pass, one thin always-hot pass).
             device.BlendState = BlendState.Additive;
-            DrawRibbon(device, effect, center, endSegment, retractT,
+            inkEffect.Parameters["uForceHot"]?.SetValue(1f);
+            DrawRibbon(device, inkEffect, center,
                 widthAt: CoreWidthAt, outerInset: 0f,
                 outerColor: CoreColor * 0.9f, innerColor: CoreColor * 0f);
 
@@ -181,34 +200,22 @@ namespace KyoMod.Content.Projectiles.Melee
             return false;
         }
 
-        // How much of the arc (as a fraction of the full sweep) the retracting edge takes to fade
-        // from fully transparent to fully opaque — a soft dissolve band instead of a hard cutoff.
-        private const float RetractEdgeFade = 0.08f;
-
         // Builds a ribbon strip following the whole arc: each sample contributes an outer and inner
         // vertex, so the GPU interpolates color/width smoothly with no visible seams. The outer vertex
         // never sits further from center than (Radius - outerInset), keeping the visual within hit
-        // range. Vertices behind the retracting boundary (t < retractT) fade out smoothly across
-        // RetractEdgeFade rather than being dropped from the mesh outright.
-        private void DrawRibbon(GraphicsDevice device, BasicEffect effect, Vector2 center,
-            int endSegment, float retractT,
+        // range. The full mesh is always built — grow-in reveal, dissolve, and the hard-fade backstop
+        // are all handled per-pixel by the shader now (see SlashInk.fx), not by cropping vertices or
+        // multiplying a CPU-side erosion factor here.
+        private void DrawRibbon(GraphicsDevice device, Effect effect, Vector2 center,
             Func<float, float> widthAt, float outerInset, Color outerColor, Color innerColor)
         {
-            int vertCount = (endSegment + 1) * 2;
-            var verts = new VertexPositionColor[vertCount];
+            int vertCount = (Segments + 1) * 2;
+            var verts = new VertexPositionColorTexture[vertCount];
 
-            for (int i = 0; i <= endSegment; i++)
+            for (int i = 0; i <= Segments; i++)
             {
                 float t         = i / (float)Segments;
                 float thickness = widthAt(t) + MinRenderThickness;
-                // Before retraction actually starts (retractT == 0), stay fully opaque everywhere —
-                // otherwise this formula would permanently fade the first RetractEdgeFade fraction of
-                // the arc even during the grow/hold phase, purely because it sits near t=0. That made
-                // the start tip look "eaten away" even when nothing was disappearing yet, while the end
-                // tip (never close to t=0) never got this treatment — an unintended asymmetry.
-                float erosion = retractT <= 0f
-                    ? 1f
-                    : MathHelper.Clamp((t - retractT) / RetractEdgeFade, 0f, 1f);
 
                 Vector2 normal   = (StartAngle + Sweep * t).ToRotationVector2();
                 float   outerLen = Radius - outerInset;
@@ -217,8 +224,10 @@ namespace KyoMod.Content.Projectiles.Melee
                 Vector2 outerPos = center + normal * outerLen;
                 Vector2 innerPos = center + normal * innerLen;
 
-                verts[i * 2]     = new VertexPositionColor(new Vector3(outerPos, 0f), outerColor * erosion);
-                verts[i * 2 + 1] = new VertexPositionColor(new Vector3(innerPos, 0f), innerColor * erosion);
+                // v = 0 at the outer edge, 1 at the inner (trailing) edge — matches SlashInk.fx's UV
+                // convention for its edge-bleed and trailing dry-brush streak.
+                verts[i * 2]     = new VertexPositionColorTexture(new Vector3(outerPos, 0f), outerColor, new Vector2(t, 0f));
+                verts[i * 2 + 1] = new VertexPositionColorTexture(new Vector3(innerPos, 0f), innerColor, new Vector2(t, 1f));
             }
 
             foreach (EffectPass pass in effect.CurrentTechnique.Passes)
