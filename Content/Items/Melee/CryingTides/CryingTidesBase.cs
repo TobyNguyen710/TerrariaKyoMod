@@ -29,9 +29,10 @@ namespace KyoMod.Content.Items.Melee.CryingTides
         private const int SkillCooldownHavoc   = 540;
 
         public virtual bool HasSkill => false;
-        protected virtual float SwordScale => 1f;
-        protected virtual float SwordArc => 1f;
+        public virtual float SwordScale => 1f;
+        public virtual float SwordArc => 1f;
         public virtual bool HasHavocForm => false;
+        public virtual bool HasUltimate => false;
 
         // 0 = ready, 1 = just used
         public float SkillCooldownRatio => HasSkill

@@ -3,7 +3,6 @@ using KyoMod.Common.GlobalProjectiles;
 using KyoMod.Content.Buffs;
 using Microsoft.Xna.Framework;
 using Terraria;
-using Terraria.Audio;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -17,13 +16,13 @@ namespace KyoMod.Content.Projectiles.Melee
 	{
 		public override string Texture => "KyoMod/Content/Projectiles/Melee/TestSwordArrow";
 
-		public const  float TravelSpeed = 26f; // scale the spawn direction up to this on frame 0
+		public const  float TravelSpeed = 52f; // scale the spawn direction up to this on frame 0
 
 		private const int   Lifetime    = 70;
 		private const float ArcRadius   = 260f; // far bigger than SpectroBeam's 38f
 		private const float ArcHalf     = MathHelper.Pi * 60f / 180f; // 60° each side = 120° total
 		private const float Thickness   = 150f; // radial band width the crescent occupies
-		private const int   FreezeDuration = 150; // 2.5 seconds
+		private const int   FreezeDuration = 420; // 7 seconds
 
 		private Vector2 TravelDir => Projectile.velocity.SafeNormalize(Vector2.UnitX);
 
@@ -44,12 +43,9 @@ namespace KyoMod.Content.Projectiles.Melee
 
 		public override void AI()
 		{
+			// Cast sound now plays from SpectroUltimateCast when the wind-up begins, not here.
 			if (Projectile.timeLeft == Lifetime)
-			{
 				Projectile.velocity = TravelDir * TravelSpeed;
-				if (Main.myPlayer == Projectile.owner)
-					SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordSkill") { PitchVariance = 0.05f, Volume = 1.1f }, Projectile.Center);
-			}
 
 			Vector2 dir       = TravelDir;
 			Vector2 arcCenter = Projectile.Center - dir * ArcRadius; // crown of the crescent sits on Projectile.Center

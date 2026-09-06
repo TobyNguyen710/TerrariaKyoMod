@@ -42,16 +42,21 @@ namespace KyoMod.Common.Players
         }
 
         // Temporary test wiring for the PostMech "ultimate" ability (see
-        // docs/CryingTides-SlashEffect-DesignDoc.md §10) — hardcoded to the PostWoF item and the
-        // Spectro beam specifically, since PostMech's item/trigger design doesn't exist yet.
+        // docs/CryingTides-SlashEffect-DesignDoc.md §11) — still no real cost/cooldown, and only
+        // fires the Spectro beam (Havoc's half doesn't exist yet), but now gated on the generic
+        // HasUltimate flag rather than a hardcoded item-type check, so any tier that unlocks the
+        // ultimate works automatically. Spawns the SpectroUltimateCast wind-up, which fires the
+        // actual beam itself once its swing animation finishes. Restricted to Spectro form
+        // (ActiveForm == 0) since only Spectro's half of the ultimate exists so far.
         public override void ProcessTriggers(TriggersSet triggersSet)
         {
             if (!KyoMod.CryingTidesUltimateKeybind.JustPressed) return;
-            if (Player.HeldItem?.ModItem is not CryingTidesPostWoF) return;
+            if (Player.HeldItem?.ModItem is not CryingTidesBase sword || !sword.HasUltimate) return;
+            if (sword.ActiveForm != 0) return;
 
             Vector2 direction = (Main.MouseWorld - Player.Center).SafeNormalize(Vector2.UnitX * Player.direction);
             Projectile.NewProjectile(Player.GetSource_Misc("CryingTidesUltimate"), Player.Center, direction,
-                ModContent.ProjectileType<SpectroUltimateBeam>(), 0, 0f, Player.whoAmI);
+                ModContent.ProjectileType<SpectroUltimateCast>(), 0, 0f, Player.whoAmI, sword.SwordScale, sword.SwordArc);
         }
     }
 }

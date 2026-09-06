@@ -8,12 +8,12 @@ Items: {
 	}
 
 	CryingTidesPostEoC: {
-		DisplayName: Crying Tides
+		DisplayName: Crying Tides (EoC)
 		Tooltip: A blade that weeps with the rhythm of the sea
 	}
 
 	CryingTidesPostEvilBoss: {
-		DisplayName: Crying Tides
+		DisplayName: Crying Tides (Evil)
 		Tooltip:
 			'''
 			A blade that weeps with the rhythm of the sea
@@ -32,13 +32,25 @@ Items: {
 	}
 
 	CryingTidesPostWoF: {
-		DisplayName: Crying Tides
+		DisplayName: Crying Tides (WoF)
 		Tooltip:
 			'''
 			A blade that weeps with the rhythm of the sea
 			Middle-click to switch between Spectro and Havoc forms
 			[Spectro] Right-click to unleash a temporal slow pulse
 			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
+			'''
+	}
+
+	CryingTidesPostMech: {
+		DisplayName: Crying Tides (Mech)
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Middle-click to switch between Spectro and Havoc forms
+			[Spectro] Right-click to unleash a temporal slow pulse
+			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
+			[Spectro] Press [Ultimate] key to unleash a colossal beam that freezes time itself
 			'''
 	}
 }
@@ -56,6 +68,7 @@ Projectiles: {
 	HavocSlashArc.DisplayName: Havoc Slash Arc
 	SpectroSlashArc.DisplayName: Spectro Slash Arc
 	SpectroUltimateBeam.DisplayName: Spectro Ultimate Beam
+	SpectroUltimateCast.DisplayName: Spectro Ultimate Cast
 }
 
 Buffs: {
@@ -75,4 +88,4 @@ Buffs: {
 	}
 }
 
-Keybinds.CryingTidesUltimate.DisplayName: Crying Tides Ultimate
+Keybinds.CryingTidesUltimate.DisplayName: Ultimate
