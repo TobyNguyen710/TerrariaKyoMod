@@ -1,4 +1,5 @@
 using System;
+using KyoMod.Common.Players;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -53,6 +54,8 @@ namespace KyoMod.Content.Projectiles.Melee
 
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
+            Main.player[Projectile.owner].GetModPlayer<CryingTidesPlayer>().AddLiberationEnergy();
+
             if (Main.netMode == NetmodeID.Server) return;
 
             SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordImpactLight") { PitchVariance = 0.25f }, target.Center);

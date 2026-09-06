@@ -50,7 +50,8 @@ Items: {
 			Middle-click to switch between Spectro and Havoc forms
 			[Spectro] Right-click to unleash a temporal slow pulse
 			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
-			[Spectro] Press [Ultimate] key to unleash a colossal beam that freezes time itself
+			Hits build Liberation Energy, up to 75
+			[Spectro] At 75 Liberation Energy, press [Ultimate] key to unleash a colossal beam that freezes time itself
 			'''
 	}
 }

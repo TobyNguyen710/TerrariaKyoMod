@@ -49,8 +49,10 @@ namespace KyoMod.Content.Projectiles.Melee
         // does.
         private const float MinRenderThickness = 2f;
 
-        protected abstract Color CoreColor { get; }
-        protected abstract Color BodyColor { get; }
+        // Public (not just protected) so other UI — e.g. the Liberation Energy bar — can read a
+        // form's own slash color as the single source of truth instead of duplicating the values.
+        public abstract Color CoreColor { get; }
+        public abstract Color BodyColor { get; }
         protected virtual  float MaxThickness => 70f;  // belly thickness for normal (tapered) swings
         protected virtual  float SpinThickness => 64f; // uniform thickness for a full-spin swing
         protected virtual  float CoreWidth     => 14f; // roughly constant highlight width — decoupled

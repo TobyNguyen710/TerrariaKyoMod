@@ -73,6 +73,8 @@ namespace KyoMod.Content.Projectiles.Melee
             NPC npc = Main.npc[idx];
             if (!npc.active) return;
 
+            Owner.GetModPlayer<CryingTidesPlayer>().AddLiberationEnergy();
+
             if (Main.netMode != NetmodeID.MultiplayerClient)
             {
                 int scaledDamage = (int)(Projectile.damage * damageMultiplier);
@@ -221,6 +223,7 @@ namespace KyoMod.Content.Projectiles.Melee
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
             target.HitSound = savedNpcHitSound;
+            Owner.GetModPlayer<CryingTidesPlayer>().AddLiberationEnergy();
 
             if (!directStackGranted)
             {

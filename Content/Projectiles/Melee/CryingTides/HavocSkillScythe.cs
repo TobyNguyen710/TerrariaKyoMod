@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KyoMod.Common.Players;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -69,6 +70,8 @@ namespace KyoMod.Content.Projectiles.Melee
         {
             NPC npc = Main.npc[npcIdx];
             if (!npc.active) return;
+
+            Main.player[Projectile.owner].GetModPlayer<CryingTidesPlayer>().AddLiberationEnergy();
 
             if (Main.netMode != NetmodeID.MultiplayerClient)
             {
@@ -168,6 +171,7 @@ namespace KyoMod.Content.Projectiles.Melee
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
             target.HitSound = savedNpcHitSound;
+            Main.player[Projectile.owner].GetModPlayer<CryingTidesPlayer>().AddLiberationEnergy();
 
             pendingHits.Add(new DelayedHitEntry
             {
