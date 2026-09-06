@@ -15,7 +15,7 @@ namespace KyoMod.Content.Projectiles.Melee
         public override string Texture => "KyoMod/Content/Projectiles/Melee/CryingTides/CryingTidesScytheNoStack";
 
         private const int GrowFrames = 5;
-        private const int HoldFrames = 3;
+        private const int HoldFrames = 10;
         private const int FadeFrames = 9;
         private const int Lifetime   = GrowFrames + HoldFrames + FadeFrames;
 

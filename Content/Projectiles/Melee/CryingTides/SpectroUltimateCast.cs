@@ -19,11 +19,13 @@ namespace KyoMod.Content.Projectiles.Melee
 		private const float HoldRatio    = 0.9f; // matches CryingTidesSwungHavoc's HoldRatio
 		private const float HalfArc      = MathHelper.Pi * 100f / 180f; // matches Havoc combo 0's HalfArc
 		private const float HoldDistance = 5f;
+		private const float MaxJitter    = 3.5f; // peak shake amplitude at the very end of the hold
 
 		private bool    initialized     = false;
 		private Vector2 direction       = Vector2.Zero;
 		private int     lockedDirection = 1;
 		private bool    beamFired       = false;
+		private Vector2 jitterOffset    = Vector2.Zero;
 
 		// TierScale/TierArc, passed in from the actual equipped weapon (CryingTidesPlayer) — draws
 		// at the same baseline size (1.2x) the real swing shows at the start/end of its motion,
@@ -64,7 +66,14 @@ namespace KyoMod.Content.Projectiles.Melee
 					SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTIdesSpectroUlt") { PitchVariance = 0.05f, Volume = 0.6f }, Projectile.Center);
 			}
 
-			Projectile.Center   = Owner.Center + direction * HoldDistance;
+			// Building shake during the hold: ramps up from nothing to MaxJitter as the hold
+			// approaches its end, selling the feeling of straining to keep the strike charged.
+			float holdRatio = MathHelper.Clamp(SwingRatio / HoldRatio, 0f, 1f);
+			jitterOffset = holdRatio >= 1f
+				? Vector2.Zero
+				: Main.rand.NextVector2Circular(MaxJitter * holdRatio, MaxJitter * holdRatio);
+
+			Projectile.Center   = Owner.Center + direction * HoldDistance + jitterOffset;
 			Projectile.velocity = Vector2.Zero;
 
 			float baseAngle = direction.ToRotation();
@@ -99,7 +108,7 @@ namespace KyoMod.Content.Projectiles.Melee
 			SpriteEffects flip       = lockedDirection < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 			float         extraAngle = lockedDirection < 0 ? MathHelper.PiOver2 : 0f;
 			Vector2       drawOrigin = new Vector2(lockedDirection < 0 ? sword.Width : 0f, sword.Height);
-			Vector2       drawOffset = Owner.Center + direction * HoldDistance * 0.5f - Main.screenPosition;
+			Vector2       drawOffset = Owner.Center + direction * HoldDistance * 0.5f + jitterOffset - Main.screenPosition;
 			float         drawRot    = Projectile.rotation + MathHelper.PiOver4 + extraAngle;
 
 			float scale = TierScale * TierArc * 1.2f;
