@@ -39,7 +39,7 @@ namespace KyoMod.Common.Players
         // Havoc's ultimate doesn't exist yet, but the cost is reserved here so the resource design
         // covers both from the start.
         public const float SpectroUltimateCost = 75f;
-        public const float HavocUltimateCost   = 50f;
+        public const float HavocUltimateCost   = 1f;
 
         public void AddLiberationEnergy(float amount = EnergyPerHit)
         {
@@ -64,25 +64,38 @@ namespace KyoMod.Common.Players
             }
         }
 
-        // Fires the Spectro beam (Havoc's half doesn't exist yet), gated on the generic HasUltimate
-        // flag rather than a hardcoded item-type check, so any tier that unlocks the ultimate works
-        // automatically. Spawns the SpectroUltimateCast wind-up, which fires the actual beam itself
-        // once its swing animation finishes. Restricted to Spectro form (ActiveForm == 0) since only
-        // Spectro's half of the ultimate exists so far. Now gated on Liberation Energy: the cast
-        // input is simply ignored below the cost, spending it in full only once the cast actually
-        // fires (not on keypress) so a denied attempt doesn't drain the meter.
+        // Gated on the generic HasUltimate flag rather than a hardcoded item-type check, so any tier
+        // that unlocks the ultimate works automatically. Gated on Liberation Energy: a denied attempt
+        // (not enough energy) is simply ignored — the cost is only spent once the cast actually
+        // fires, not on keypress, so a denied attempt doesn't drain the meter.
         public override void ProcessTriggers(TriggersSet triggersSet)
         {
             if (!KyoMod.CryingTidesUltimateKeybind.JustPressed) return;
             if (Player.HeldItem?.ModItem is not CryingTidesBase sword || !sword.HasUltimate) return;
-            if (sword.ActiveForm != 0) return;
-            if (LiberationEnergy < SpectroUltimateCost) return;
-
-            LiberationEnergy -= SpectroUltimateCost;
 
             Vector2 direction = (Main.MouseWorld - Player.Center).SafeNormalize(Vector2.UnitX * Player.direction);
-            Projectile.NewProjectile(Player.GetSource_Misc("CryingTidesUltimate"), Player.Center, direction,
-                ModContent.ProjectileType<SpectroUltimateCast>(), 0, 0f, Player.whoAmI, sword.SwordScale, sword.SwordArc);
+
+            if (sword.ActiveForm == 0)
+            {
+                if (LiberationEnergy < SpectroUltimateCost) return;
+                LiberationEnergy -= SpectroUltimateCost;
+
+                // Spawns the SpectroUltimateCast wind-up, which fires the actual beam itself once its
+                // swing animation finishes.
+                Projectile.NewProjectile(Player.GetSource_Misc("CryingTidesUltimate"), Player.Center, direction,
+                    ModContent.ProjectileType<SpectroUltimateCast>(), 0, 0f, Player.whoAmI, sword.SwordScale, sword.SwordArc);
+            }
+            else if (sword.ActiveForm == 1)
+            {
+                if (LiberationEnergy < HavocUltimateCost) return;
+                LiberationEnergy -= HavocUltimateCost;
+
+                // Real weapon damage (not 0 like Spectro's pure-visual cast) — the dash's delayed
+                // ghost hits scale off Projectile.damage, same pattern as HavocSkillScythe.
+                int damage = Player.GetWeaponDamage(sword.Item);
+                Projectile.NewProjectile(Player.GetSource_Misc("CryingTidesUltimate"), Player.Center, direction,
+                    ModContent.ProjectileType<HavocUltimateDash>(), damage, 0f, Player.whoAmI, sword.SwordScale, sword.SwordArc);
+            }
         }
     }
 }
