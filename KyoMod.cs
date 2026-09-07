@@ -25,22 +25,26 @@ namespace KyoMod
 		{
 			CryingTidesUltimateKeybind = KeybindLoader.RegisterKeybind(this, "CryingTidesUltimate", "Q");
 
-			// First attempt at a real shader for the slash arc (compiled HiDef/SM3, see
-			// docs/Shaders/SlashInk.fx) — untested against this machine's actual GraphicsDevice
-			// profile, so a load failure here must not take the whole mod down with it. On failure
-			// SlashInkShader stays null and SlashArcEffect's own null check falls back to the
-			// existing flat-color BasicEffect path.
+			// Shader compiled HiDef/SM3 (see docs/Shaders/SlashInk.fx) — untested against this
+			// machine's actual GraphicsDevice profile ahead of time, so a load failure here must not
+			// take the whole mod down with it. On failure SlashInkShader stays null and the calling
+			// effect's own null check falls back to its non-shader path.
 			if (!Main.dedServ)
 			{
-				try
-				{
-					SlashInkShader = Assets.Request<Effect>("Effects/SlashInk", AssetRequestMode.ImmediateLoad);
-				}
-				catch (Exception e)
-				{
-					Logger.Warn($"SlashInk shader failed to load, falling back to flat-color slash arcs: {e}");
-					SlashInkShader = null;
-				}
+				SlashInkShader = TryLoadShader("Effects/SlashInk");
+			}
+		}
+
+		private Asset<Effect> TryLoadShader(string path)
+		{
+			try
+			{
+				return Assets.Request<Effect>(path, AssetRequestMode.ImmediateLoad);
+			}
+			catch (Exception e)
+			{
+				Logger.Warn($"Shader '{path}' failed to load, falling back to its non-shader path: {e}");
+				return null;
 			}
 		}
 

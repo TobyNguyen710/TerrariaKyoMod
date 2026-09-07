@@ -40,6 +40,21 @@ namespace KyoMod.Content.Projectiles.Melee
         private bool       ghostDelayActive = false;
         private SoundStyle? savedNpcHitSound = null;
 
+        // Afterimage smear: a short ring buffer of past rotations, drawn additively behind the
+        // current sprite (oldest = dimmest) — the sprite's own rotation alone doesn't read as
+        // "spinning fast" at a glance, this fakes motion blur cheaply without a trail texture.
+        private const int SmearCount = 6;
+        private readonly Queue<float> rotationHistory = new();
+
+        // Dust spawned at the blade's own tip (not the center) each frame traces a visible circular
+        // streak as it spins — the existing center-burst dust reads as generic sparks, this one
+        // specifically sells the spin.
+        private const float TipDustRadius = 26f;
+
+        // Sprite is drawn facing right by default — flip it when thrown leftward so it doesn't look
+        // mirrored/backwards. SpinDir already doubles as the throw direction's sign.
+        private SpriteEffects Flip => SpinDir < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+
         public override string Texture => "KyoMod/Content/Projectiles/Melee/CryingTides/CryingTidesScytheNoStack";
 
         public override void SetDefaults()
@@ -147,7 +162,11 @@ namespace KyoMod.Content.Projectiles.Melee
             {
                 Projectile.rotation += SpinSpeed * SpinDir;
 
-                // Crimson dust trail
+                rotationHistory.Enqueue(Projectile.rotation);
+                if (rotationHistory.Count > SmearCount)
+                    rotationHistory.Dequeue();
+
+                // Crimson dust trail (ambient burst around the whole blade)
                 if (Main.rand.NextBool(2))
                 {
                     Dust d = Dust.NewDustDirect(Projectile.Center, 8, 8, DustID.Crimson);
@@ -155,6 +174,15 @@ namespace KyoMod.Content.Projectiles.Melee
                     d.noGravity = true;
                     d.scale     = Main.rand.NextFloat(0.6f, 1.2f);
                 }
+
+                // Tip-traced dust — spawned exactly on the spinning edge so consecutive frames trace
+                // an actual visible ring/streak, not just scattered sparks.
+                Vector2 tipPos = Projectile.Center + Projectile.rotation.ToRotationVector2() * (TipDustRadius * SwordScale);
+                Dust tip = Dust.NewDustDirect(tipPos, 0, 0, DustID.CrimsonTorch);
+                tip.velocity  = Vector2.Zero;
+                tip.noGravity = true;
+                tip.scale     = Main.rand.NextFloat(0.9f, 1.3f);
+                tip.fadeIn    = 0.6f;
 
                 // Crimson point light
                 float glow = TextureTier >= 2 ? 1.0f : TextureTier >= 1 ? 0.55f : 0.25f;
@@ -202,19 +230,42 @@ namespace KyoMod.Content.Projectiles.Melee
         {
             if (ghostDelayActive) return false;
 
-            Texture2D tex    = GetTexture();
-            float     alpha  = Projectile.timeLeft < FadeFrames ? Projectile.timeLeft / (float)FadeFrames : 1f;
-            var       origin = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
-            float     scale  = SwordScale * 3f * alpha;
+            Texture2D     tex     = GetTexture();
+            float         alpha   = Projectile.timeLeft < FadeFrames ? Projectile.timeLeft / (float)FadeFrames : 1f;
+            var           origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
+            float         scale   = SwordScale * 3f * alpha;
+            Vector2       drawPos = Projectile.Center - Main.screenPosition;
+            SpriteEffects flip    = Flip;
+
+            // Afterimage smear: oldest rotations drawn first (dimmest, furthest back), additive so
+            // they glow rather than muddy the sprite's own color — the cheap "spinning fast" cue.
+            if (rotationHistory.Count > 0)
+            {
+                Main.spriteBatch.End();
+                Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+
+                int   i     = 0;
+                int   count = rotationHistory.Count;
+                foreach (float pastRotation in rotationHistory)
+                {
+                    float t          = (i + 1) / (float)(count + 1); // 0 = oldest, ~1 = newest
+                    float smearAlpha = t * t * 0.35f * alpha;
+                    Main.spriteBatch.Draw(tex, drawPos, null, Color.Crimson * smearAlpha, pastRotation, origin, scale, flip, 0f);
+                    i++;
+                }
+
+                Main.spriteBatch.End();
+                Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+            }
 
             Main.spriteBatch.Draw(tex,
-                Projectile.Center - Main.screenPosition,
+                drawPos,
                 null,
                 lightColor * alpha,
                 Projectile.rotation,
                 origin,
                 scale,
-                SpriteEffects.None,
+                flip,
                 0f);
 
             return false;
