@@ -97,6 +97,11 @@ Items: {
 			[Havoc] At 35 Liberation Energy, press [Ultimate] key to dash forward, marking enemies in your path for a burst of 7 delayed strikes
 			'''
 	}
+
+	BubblingOblivion: {
+		DisplayName: Bubbling Oblivion
+		Tooltip: A staff that churns with restless, oblivious foam
+	}
 }
 
 Projectiles: {
@@ -115,6 +120,9 @@ Projectiles: {
 	SpectroUltimateCast.DisplayName: Spectro Ultimate Cast
 	HavocUltimateDash.DisplayName: Havoc Ultimate Dash
 	HavocUltimateSlash.DisplayName: Havoc Ultimate Slash
+	BubblingOblivionBolt.DisplayName: Bubbling Oblivion Bolt
+	BubblingOblivionOrb.DisplayName: Bubbling Oblivion Orb
+	BubblingOblivionHeld.DisplayName: Bubbling Oblivion Held
 }
 
 Buffs: {
