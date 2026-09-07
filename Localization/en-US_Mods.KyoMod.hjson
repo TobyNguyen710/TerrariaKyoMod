@@ -52,7 +52,49 @@ Items: {
 			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
 			Hits build Liberation Energy, up to 75
 			[Spectro] At 75 Liberation Energy, press [Ultimate] key to unleash a colossal beam that freezes time itself
-			[Havoc] At 50 Liberation Energy, press [Ultimate] key to dash forward, marking enemies in your path for a burst of 7 delayed strikes
+			[Havoc] At 35 Liberation Energy, press [Ultimate] key to dash forward, marking enemies in your path for a burst of 7 delayed strikes
+			'''
+	}
+
+	CryingTidesPostPlantera: {
+		DisplayName: Crying Tides (Plantera)
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Middle-click to switch between Spectro and Havoc forms
+			[Spectro] Right-click to unleash a temporal slow pulse
+			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
+			Hits build Liberation Energy, up to 75
+			[Spectro] At 75 Liberation Energy, press [Ultimate] key to unleash a colossal beam that freezes time itself
+			[Havoc] At 35 Liberation Energy, press [Ultimate] key to dash forward, marking enemies in your path for a burst of 7 delayed strikes
+			'''
+	}
+
+	CryingTidesPostGolem: {
+		DisplayName: Crying Tides (Golem)
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Middle-click to switch between Spectro and Havoc forms
+			[Spectro] Right-click to unleash a temporal slow pulse
+			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
+			Hits build Liberation Energy, up to 75
+			[Spectro] At 75 Liberation Energy, press [Ultimate] key to unleash a colossal beam that freezes time itself
+			[Havoc] At 35 Liberation Energy, press [Ultimate] key to dash forward, marking enemies in your path for a burst of 7 delayed strikes
+			'''
+	}
+
+	CryingTidesPostMoonLord: {
+		DisplayName: Crying Tides (Moon Lord)
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Middle-click to switch between Spectro and Havoc forms
+			[Spectro] Right-click to unleash a temporal slow pulse
+			[Havoc] Hit enemies to build momentum, scaling damage from 0.6x to 2.0x at max stacks
+			Hits build Liberation Energy, up to 75
+			[Spectro] At 75 Liberation Energy, press [Ultimate] key to unleash a colossal beam that freezes time itself
+			[Havoc] At 35 Liberation Energy, press [Ultimate] key to dash forward, marking enemies in your path for a burst of 7 delayed strikes
 			'''
 	}
 }

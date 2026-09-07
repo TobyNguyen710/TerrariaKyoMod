@@ -39,7 +39,7 @@ namespace KyoMod.Common.Players
         // Havoc's ultimate doesn't exist yet, but the cost is reserved here so the resource design
         // covers both from the start.
         public const float SpectroUltimateCost = 75f;
-        public const float HavocUltimateCost   = 1f;
+        public const float HavocUltimateCost   = 35f;
 
         public void AddLiberationEnergy(float amount = EnergyPerHit)
         {
