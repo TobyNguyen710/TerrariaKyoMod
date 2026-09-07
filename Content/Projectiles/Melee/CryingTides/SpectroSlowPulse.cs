@@ -39,7 +39,7 @@ namespace KyoMod.Content.Projectiles.Melee
 			Player owner = Main.player[Projectile.owner];
 
 			if (Projectile.timeLeft == Duration && Main.myPlayer == Projectile.owner)
-				SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordSkill") { PitchVariance = 0.1f }, Projectile.Center);
+				SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTides/SwordSkill") { PitchVariance = 0.1f }, Projectile.Center);
 			Projectile.Center = owner.Center;
 
 			owner.heldProj = Projectile.whoAmI;

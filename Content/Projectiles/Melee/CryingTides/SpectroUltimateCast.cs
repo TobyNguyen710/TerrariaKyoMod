@@ -63,7 +63,7 @@ namespace KyoMod.Content.Projectiles.Melee
 				initialized     = true;
 
 				if (Main.myPlayer == Projectile.owner)
-					SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTIdesSpectroUlt") { PitchVariance = 0.05f, Volume = 0.6f }, Projectile.Center);
+					SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTides/CryingTIdesSpectroUlt") { PitchVariance = 0.05f, Volume = 0.6f }, Projectile.Center);
 			}
 
 			// Building shake during the hold: ramps up from nothing to MaxJitter as the hold

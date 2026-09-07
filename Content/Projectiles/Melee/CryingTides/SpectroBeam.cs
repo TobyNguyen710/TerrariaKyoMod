@@ -58,7 +58,7 @@ namespace KyoMod.Content.Projectiles.Melee
 
             if (Main.netMode == NetmodeID.Server) return;
 
-            SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/SwordImpactLight") { PitchVariance = 0.25f }, target.Center);
+            SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTides/SwordImpactLight") { PitchVariance = 0.25f }, target.Center);
 
             for (int i = 0; i < 10; i++)
             {

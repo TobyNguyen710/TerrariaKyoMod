@@ -101,8 +101,8 @@ namespace KyoMod.Content.Projectiles.Melee
 				{
 					bool heavy = Main.rand.NextBool();
 					SoundStyle swingSound = heavy
-						? new SoundStyle("KyoMod/Sounds/SwordSwingHeavy") { PitchVariance = 0.2f, Volume = 0.4f }
-						: new SoundStyle("KyoMod/Sounds/SwordSwingLight") { PitchVariance = 0.2f };
+						? new SoundStyle("KyoMod/Sounds/CryingTides/SwordSwingHeavy") { PitchVariance = 0.2f, Volume = 0.4f }
+						: new SoundStyle("KyoMod/Sounds/CryingTides/SwordSwingLight") { PitchVariance = 0.2f };
 					SoundEngine.PlaySound(swingSound, Projectile.Center);
 				}
 			}

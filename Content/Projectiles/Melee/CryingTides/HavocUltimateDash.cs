@@ -96,7 +96,7 @@ namespace KyoMod.Content.Projectiles.Melee
 
                 if (Main.myPlayer == Projectile.owner)
                 {
-                    SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/ScytheSlash1") { PitchVariance = 0.1f, Volume = 0.8f }, Owner.Center);
+                    SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTides/ScytheSlash1") { PitchVariance = 0.1f, Volume = 0.8f }, Owner.Center);
 
                     Projectile.NewProjectile(Projectile.GetSource_FromThis(),
                         Owner.Center + direction * (actualDistance * 0.5f), Vector2.Zero,
@@ -152,7 +152,7 @@ namespace KyoMod.Content.Projectiles.Melee
                 });
 
                 if (Main.netMode != NetmodeID.Server)
-                    SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/ScytheImpactHeavy") { PitchVariance = 0.15f, Volume = 0.6f }, npc.Center);
+                    SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTides/ScytheImpactHeavy") { PitchVariance = 0.15f, Volume = 0.6f }, npc.Center);
             }
         }
 
@@ -219,7 +219,7 @@ namespace KyoMod.Content.Projectiles.Melee
 
             if (Main.netMode != NetmodeID.Server)
             {
-                SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/ScytheImpactLight") { PitchVariance = 0.2f, Volume = 0.5f }, npc.Center);
+                SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/CryingTides/ScytheImpactLight") { PitchVariance = 0.2f, Volume = 0.5f }, npc.Center);
 
                 for (int i = 0; i < 10; i++)
                 {
