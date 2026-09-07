@@ -12,7 +12,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
         // Pixel [36,10] on the 48x48 no-bubble sprite, relative to BubblingOblivionHeld's grip pivot —
         // derived rather than hardcoded so retuning the grip automatically keeps the bubble attached.
-        private static readonly Vector2 TipPixel = new Vector2(36f, 10f);
+        private static readonly Vector2 TipPixel = new Vector2(52.5f, 10.5f);
         private static Vector2 TipOffset => TipPixel - BubblingOblivionHeld.GripOrigin;
         private const float SpinSpeed = 0.2f;
 
@@ -56,9 +56,10 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 return;
             }
 
-            Vector2 localOffset = new Vector2(TipOffset.X * held.LockedDirection, TipOffset.Y);
+            Vector2 localOffset = new Vector2(TipOffset.X * held.LockedDirection, TipOffset.Y) * BubblingOblivionHeld.DrawScale;
             Projectile.Center = held.Projectile.Center + localOffset.RotatedBy(held.DrawRotation);
             Projectile.rotation += SpinSpeed;
+            Projectile.scale = BubblingOblivionHeld.DrawScale;
         }
     }
 }

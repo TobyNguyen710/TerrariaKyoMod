@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -14,14 +15,21 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         public override string Texture => "KyoMod/Content/Items/Magic/BubblingOblivion/BubblingOblivionNoBubble";
 
         private const float HoldDistance = 5f;
-        // The hand sits a little below Owner.Center — nudge the whole staff down to match.
-        private const float HandYOffset = 3f;
+        // Anchor height near the hand, blended by how vertical the aim is (raising the arm to aim
+        // overhead genuinely sits higher than aiming out to the side — a single fixed value can't
+        // satisfy both). Negative lifts the anchor up.
+        private const float HandYOffsetHorizontal = 4f;
+        // Just outside dead-level aim on the downward side only — diagonal-down wants a distinctly
+        // higher value than dead-level itself, not a smooth ramp up from it (see DeadZone below).
+        private const float HandYOffsetNearLevelDown = 10f;
+        private const float HandYOffsetVertical = -15f;
+        public const float DrawScale = 1.5f;
 
-        // Grip point in local sprite pixels, for facing right. Shifted from the stick's true bottom-left
-        // end (0, 48) partway up the shaft toward the tip, since a staff is held around the middle, not
-        // by the very butt end — pulls the visible tip back and lets the butt poke out slightly behind
-        // the hand. Tune by eye if it still looks off.
-        public static readonly Vector2 GripOrigin = new Vector2(8f, 40f);
+        // Grip point in local sprite pixels, for facing right. Must lie exactly on the shaft's
+        // centerline (butt end (0,63) -> shaft point (52,11), i.e. x+y=63) or rotating toward vertical
+        // visibly swings any off-axis error sideways. This sits ~35% of the way up from the butt end,
+        // for a mid-shaft hold rather than gripping the very end.
+        public static readonly Vector2 GripOrigin = new Vector2(18f, 45f);
 
         public Player Owner => Main.player[Projectile.owner];
 
@@ -52,7 +60,29 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             Vector2 aimDirection = (Main.MouseWorld - Owner.Center).SafeNormalize(Vector2.UnitX * Owner.direction);
             LockedDirection = aimDirection.X >= 0f ? 1 : -1;
 
-            Projectile.Center = Owner.Center + aimDirection * HoldDistance + new Vector2(0f, HandYOffset);
+            // Anchor's horizontal position stays fixed regardless of aim angle (only rotation should
+            // handle "pointing at the cursor" sideways — letting the full aim vector push the anchor
+            // around, as before, made it drift disconnected from the hand at extreme angles). Its
+            // height still blends toward the raised-arm position as the aim approaches vertical.
+            //
+            // The correct height isn't a smooth function of angle right at dead-level aim: perfectly
+            // horizontal wants a distinctly lower value than even a slight downward diagonal does (most
+            // likely vanilla's own arm/body pose snaps between discrete frames right around level aim).
+            // DeadZone holds the flat horizontal value within a few degrees of level; just outside it on
+            // the downward side, the target jumps straight to HandYOffsetNearLevelDown instead of
+            // ramping up from the (too low) horizontal value, then eases the rest of the way to the
+            // raised full-down height. Upward is unaffected — that side already blended smoothly.
+            const float DeadZone = 0.08f;
+            float absY = Math.Abs(aimDirection.Y);
+            float t = absY <= DeadZone ? 0f : (absY - DeadZone) / (1f - DeadZone);
+            float handY;
+            if (absY <= DeadZone)
+                handY = HandYOffsetHorizontal;
+            else if (aimDirection.Y > 0f)
+                handY = MathHelper.Lerp(HandYOffsetNearLevelDown, HandYOffsetVertical, t * t);
+            else
+                handY = MathHelper.Lerp(HandYOffsetHorizontal, HandYOffsetVertical, t);
+            Projectile.Center = Owner.Center + new Vector2(LockedDirection * HoldDistance, handY);
             Projectile.velocity = Vector2.Zero;
             Projectile.rotation = aimDirection.ToRotation();
 
@@ -77,7 +107,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 : GripOrigin;
             Vector2 drawPos = Projectile.Center - Main.screenPosition;
 
-            Main.EntitySpriteDraw(staffTex, drawPos, null, lightColor, DrawRotation, drawOrigin, 1f, flip, 0);
+            Main.EntitySpriteDraw(staffTex, drawPos, null, lightColor, DrawRotation, drawOrigin, DrawScale, flip, 0);
             return false;
         }
     }
