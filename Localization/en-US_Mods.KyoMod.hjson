@@ -21,6 +21,15 @@ Items: {
 			'''
 	}
 
+	CryingTidesPostSkeletron: {
+		DisplayName: Crying Tides (Skeletron)
+		Tooltip:
+			'''
+			A blade that weeps with the rhythm of the sea
+			Right-click to unleash a temporal slow pulse
+			'''
+	}
+
 	TestSword: {
 		DisplayName: Test Sword
 		Tooltip:
@@ -100,7 +109,11 @@ Items: {
 
 	BubblingOblivion: {
 		DisplayName: Bubbling Oblivion
-		Tooltip: A staff that churns with restless, oblivious foam
+		Tooltip:
+			'''
+			A staff that churns with restless, oblivious foam
+			Every 3rd shot conjures a lingering bubble that can be popped for bonus damage
+			'''
 	}
 }
 
@@ -122,6 +135,7 @@ Projectiles: {
 	HavocUltimateSlash.DisplayName: Havoc Ultimate Slash
 	BubblingOblivionBolt.DisplayName: Bubbling Oblivion Bolt
 	BubblingOblivionOrb.DisplayName: Bubbling Oblivion Orb
+	BubblingOblivionBigBubble.DisplayName: Bubbling Oblivion Big Bubble
 	BubblingOblivionHeld.DisplayName: Bubbling Oblivion Held
 }
 

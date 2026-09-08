@@ -14,7 +14,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         // derived rather than hardcoded so retuning the grip automatically keeps the bubble attached.
         private static readonly Vector2 TipPixel = new Vector2(52.5f, 10.5f);
         private static Vector2 TipOffset => TipPixel - BubblingOblivionHeld.GripOrigin;
-        private const float SpinSpeed = 0.2f;
+        private const float SpinSpeed = 0.02f;
 
         private Player Owner => Main.player[Projectile.owner];
 

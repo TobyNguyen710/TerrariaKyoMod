@@ -24,12 +24,12 @@ namespace KyoMod.Content.Items.Melee.CryingTides
         public override void AddRecipes()
         {
             CreateRecipe()
-                .AddIngredient<CryingTidesPostEvilBoss>()
+                .AddIngredient<CryingTidesPostSkeletron>()
                 .AddIngredient(ItemID.CobaltBar, 12)
                 .AddTile(TileID.Anvils)
                 .Register();
             CreateRecipe()
-                .AddIngredient<CryingTidesPostEvilBoss>()
+                .AddIngredient<CryingTidesPostSkeletron>()
                 .AddIngredient(ItemID.PalladiumBar, 12)
                 .AddTile(TileID.Anvils)
                 .Register();
