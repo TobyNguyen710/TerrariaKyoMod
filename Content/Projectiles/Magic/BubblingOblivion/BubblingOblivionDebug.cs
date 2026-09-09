@@ -14,10 +14,12 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
         // Own guaranteed 1x1 white pixel — TextureAssets.MagicPixel produced a wildly oversized
         // rectangle for reasons that didn't trace back to any scale-math bug on our end, so stop relying
-        // on assumptions about that asset's real dimensions/load state entirely.
+        // on assumptions about that asset's real dimensions/load state entirely. Internal (not private)
+        // so other Bubbling Oblivion visuals — e.g. BubblingOblivionMeshEffects' impact-star flash —
+        // can reuse the same texture instead of each allocating their own.
         private static Texture2D _pixel;
 
-        private static Texture2D GetPixel(GraphicsDevice device)
+        internal static Texture2D GetPixel(GraphicsDevice device)
         {
             if (_pixel == null)
             {

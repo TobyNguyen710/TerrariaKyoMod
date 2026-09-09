@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -28,6 +29,17 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         // Independent slow spin, randomized per-instance so a volley of bubbles doesn't spin in lockstep.
         private float rotationSpeed;
 
+        // Per-instance shimmer seed + age (ticks) for BubbleSwirl.fx, so a volley of bolts doesn't
+        // shimmer in lockstep.
+        private float shaderSeed;
+        private int age;
+
+        // Recent Center positions (oldest first), sampled once per AI tick — feeds the trail ribbon
+        // drawn by BubblingOblivionMeshEffects.DrawTrail, independent of the bolt's own sprite.
+        private const int TrailLength = 14;
+        private const float TrailMaxWidth = 10f;
+        private readonly List<Vector2> trailHistory = new();
+
         private SoundStyle? savedNpcHitSound;
 
         public override void SetDefaults()
@@ -47,10 +59,13 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             Projectile.scale = scale;
             Projectile.width = Projectile.height = (int)(NativeSize * scale);
             rotationSpeed = Main.rand.NextFloat(0.01f, 0.0125f) * (Main.rand.NextBool() ? 1f : -1f);
+            shaderSeed = Main.rand.NextFloat(100f);
         }
 
         public override void AI()
         {
+            age++;
+
             NPC target = BubblingOblivionHoming.FindTarget(Projectile.Center);
             if (target != null)
             {
@@ -59,15 +74,23 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
             Projectile.rotation += rotationSpeed;
 
+            trailHistory.Add(Projectile.Center);
+            if (trailHistory.Count > TrailLength)
+                trailHistory.RemoveAt(0);
+
             if (Main.rand.NextBool(3))
-                Dust.NewDust(Projectile.position, Projectile.width, Projectile.height, DustID.Water, 0f, 0f, 100, default, 0.8f * Projectile.scale);
+                BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.AmbientParticleColor, BubblingOblivionVisuals.ParticleScale, 20);
         }
 
         public override bool PreDraw(ref Color lightColor)
         {
+            // Drawn first so it sits behind the bolt's own sprite.
+            BubblingOblivionMeshEffects.DrawTrail(trailHistory, TrailMaxWidth * Projectile.scale, age / 60f, shaderSeed);
+
             Texture2D tex = ModContent.Request<Texture2D>($"KyoMod/Content/Projectiles/Magic/BubblingOblivion/BubblingOblivionBubble{Variant}").Value;
             Vector2 origin = new Vector2(tex.Width, tex.Height) * 0.5f;
-            Main.EntitySpriteDraw(tex, Projectile.Center - Main.screenPosition, null, lightColor, Projectile.rotation, origin, Projectile.scale, SpriteEffects.None, 0);
+            BubblingOblivionVisuals.DrawSwirl(tex, Projectile.Center - Main.screenPosition, lightColor, Projectile.rotation,
+                origin, Projectile.scale, age / 60f, shaderSeed);
             BubblingOblivionDebug.DrawHitbox(Projectile, Color.Lime * 0.4f);
             return false;
         }
@@ -91,7 +114,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         public override void OnKill(int timeLeft)
         {
             for (int i = 0; i < 6; i++)
-                Dust.NewDust(Projectile.position, Projectile.width, Projectile.height, DustID.Water, 0f, 0f, 100, default, 1.2f * Projectile.scale);
+                BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.AmbientParticleColor, BubblingOblivionVisuals.ParticleScale, 24);
         }
     }
 }

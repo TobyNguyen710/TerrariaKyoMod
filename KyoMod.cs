@@ -21,6 +21,29 @@ namespace KyoMod
 		// local/uncommitted, only the compiled Effects/SlashInk.xnb ships with the mod.
 		public static Asset<Effect> SlashInkShader;
 
+		// Compiled from docs/Shaders/BubbleSwirl.fx the same way — pixel-shader-only technique applied
+		// around a normal SpriteBatch sprite draw (see BubblingOblivionVisuals), not the custom-mesh
+		// approach SlashInk.fx uses. Used on all three Bubble-form sprites (regular bolts, big bubble,
+		// held-tip orb): a marbled pastel swirl (reuses SlashInk.fx's domain-warped-noise technique,
+		// different palette) rather than a literal optical effect — see that .fx file's header for why
+		// two earlier attempts (a hue-cycling rainbow rim, then real Filters.Scene background
+		// refraction) were both dropped.
+		public static Asset<Effect> BubbleSwirlShader;
+
+		// Compiled from docs/Shaders/BubbleTrail.fx — mesh-based (own VertexShader + uViewProj), same
+		// structure as SlashInk.fx, NOT a sprite-texture shader like BubbleSwirlShader above. Draws a
+		// marbled ribbon trail behind Bubble form's regular bolts, built from a short history of the
+		// bolt's own positions (see BubblingOblivionMeshEffects.DrawTrail) — the "exists in its own
+		// form, boundless to the sprite" analog of CryingTides' SlashArcEffect.
+		public static Asset<Effect> BubbleTrailShader;
+
+		// Compiled from docs/Shaders/BubbleParticle.fx — a soft circular particle dot with no texture
+		// involved at all, used by BubblingOblivionParticleSystem in place of vanilla Dust for effects
+		// that need to reproduce this weapon's exact palette (vanilla Dust.color multiplies against
+		// each dust type's own baked-in texture color, which none of the vanilla types tried could do
+		// cleanly — see that system's own header comment).
+		public static Asset<Effect> BubbleParticleShader;
+
 		public override void Load()
 		{
 			CryingTidesUltimateKeybind = KeybindLoader.RegisterKeybind(this, "CryingTidesUltimate", "Q");
@@ -32,6 +55,9 @@ namespace KyoMod
 			if (!Main.dedServ)
 			{
 				SlashInkShader = TryLoadShader("Effects/SlashInk");
+				BubbleSwirlShader = TryLoadShader("Effects/BubbleSwirl");
+				BubbleTrailShader = TryLoadShader("Effects/BubbleTrail");
+				BubbleParticleShader = TryLoadShader("Effects/BubbleParticle");
 			}
 		}
 
@@ -52,6 +78,9 @@ namespace KyoMod
 		{
 			CryingTidesUltimateKeybind = null;
 			SlashInkShader = null;
+			BubbleSwirlShader = null;
+			BubbleTrailShader = null;
+			BubbleParticleShader = null;
 		}
 	}
 }
