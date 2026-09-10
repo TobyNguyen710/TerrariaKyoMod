@@ -137,6 +137,7 @@ Projectiles: {
 	BubblingOblivionOrb.DisplayName: Bubbling Oblivion Orb
 	BubblingOblivionBigBubble.DisplayName: Bubbling Oblivion Big Bubble
 	BubblingOblivionHeld.DisplayName: Bubbling Oblivion Held
+	BubblingOblivionPopShockwave.DisplayName: Bubbling Oblivion Pop Shockwave
 }
 
 Buffs: {

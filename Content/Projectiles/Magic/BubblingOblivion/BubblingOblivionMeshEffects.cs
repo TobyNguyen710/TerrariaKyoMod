@@ -83,6 +83,84 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
         }
 
+        private const int AuraDiscSegments = 32;
+
+        // Shared mesh/draw core for BubbleAuraRing.fx — a flat unit-circle fan (built here as a
+        // triangle list: FNA's DrawUserPrimitives has no TriangleFan primitive type) scaled to
+        // `meshRadius`, with the actual visible "band" shape (glow disc vs. thin traveling ring)
+        // entirely controlled by the shader's uRingRadius/uRingWidth — see that file's own header.
+        // Additive-blended: this is a glow, not a flat translucent disc.
+        private static void DrawAuraDisc(Vector2 worldCenter, float meshRadius, float ringRadius01, float ringWidth01, float ageSeconds, float seed, float opacity)
+        {
+            Effect effect = KyoMod.BubbleAuraRingShader?.Value;
+            if (effect == null || meshRadius <= 0f || opacity <= 0f)
+                return;
+
+            Vector2 screenCenter = worldCenter - Main.screenPosition;
+            var verts = new VertexPositionColorTexture[AuraDiscSegments * 3];
+
+            for (int i = 0; i < AuraDiscSegments; i++)
+            {
+                Vector2 dir0 = (MathHelper.TwoPi * i / AuraDiscSegments).ToRotationVector2();
+                Vector2 dir1 = (MathHelper.TwoPi * (i + 1) / AuraDiscSegments).ToRotationVector2();
+
+                verts[i * 3]     = new VertexPositionColorTexture(new Vector3(screenCenter, 0f), Color.White, Vector2.Zero);
+                verts[i * 3 + 1] = new VertexPositionColorTexture(new Vector3(screenCenter + dir0 * meshRadius, 0f), Color.White, dir0);
+                verts[i * 3 + 2] = new VertexPositionColorTexture(new Vector3(screenCenter + dir1 * meshRadius, 0f), Color.White, dir1);
+            }
+
+            Matrix viewProj = Main.GameViewMatrix.TransformationMatrix
+                * Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1f, 1f);
+
+            effect.Parameters["uViewProj"]?.SetValue(viewProj);
+            effect.Parameters["uTime"]?.SetValue(ageSeconds);
+            effect.Parameters["uSeed"]?.SetValue(seed);
+            effect.Parameters["uRingRadius"]?.SetValue(ringRadius01);
+            effect.Parameters["uRingWidth"]?.SetValue(ringWidth01);
+            effect.Parameters["uOpacity"]?.SetValue(MathHelper.Clamp(opacity, 0f, 1f));
+            BubblingOblivionVisuals.ApplyPalette(effect);
+
+            GraphicsDevice device = Main.spriteBatch.GraphicsDevice;
+            Main.spriteBatch.End();
+
+            var savedRasterizer = device.RasterizerState;
+            device.RasterizerState = RasterizerState.CullNone;
+            device.DepthStencilState = DepthStencilState.None;
+            device.BlendState = BlendState.Additive;
+
+            foreach (EffectPass pass in effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                device.DrawUserPrimitives(PrimitiveType.TriangleList, verts, 0, AuraDiscSegments);
+            }
+
+            device.RasterizerState = savedRasterizer;
+            Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+        }
+
+        // Static halo/aura around the big bubble — a soft glow disc larger than the sprite itself,
+        // bright at the center and fading toward the edge (uRingRadius = 0 collapses the shader's
+        // "band" into a plain radial falloff). `radius` should track the sprite's own current visual
+        // size so the halo grows/shrinks along with it instead of staying a fixed size.
+        public static void DrawHalo(Vector2 worldCenter, float radius, float ageSeconds, float seed, float opacity = 0.5f)
+        {
+            DrawAuraDisc(worldCenter, radius, ringRadius01: 0f, ringWidth01: 1.1f, ageSeconds, seed, opacity);
+        }
+
+        // Pop shockwave — a thin ring expanding outward from the pop point to maxRadius as `progress`
+        // (0..1, caller owns the timing) advances, fading in and back out via a sine envelope instead
+        // of a hard cut, so popping reads as a genuine burst rather than just the particle telegraph
+        // ring (BigBubble.Pop()) on its own. Marbled with the full 8-color palette, same as the halo —
+        // the pop particles are the ones that match this, not the other way around: each particle
+        // picks a random stop from that same palette (BubblingOblivionVisuals.RandomPopColor) so the
+        // burst as a whole spans the ring's own color range instead of being a single flat tone.
+        public static void DrawPopShockwave(Vector2 worldCenter, float maxRadius, float progress, float ageSeconds, float seed)
+        {
+            progress = MathHelper.Clamp(progress, 0f, 1f);
+            float alpha = MathF.Sin(MathHelper.Pi * progress);
+            DrawAuraDisc(worldCenter, maxRadius, ringRadius01: progress, ringWidth01: 0.12f, ageSeconds, seed, alpha);
+        }
+
         private const int ImpactStarSpikes = 4;
         private const float ImpactStarLength = 70f;
         private const float ImpactStarWidth = 15f; // peak width at the bulge, not a uniform thickness

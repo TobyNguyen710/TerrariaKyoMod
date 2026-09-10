@@ -44,6 +44,11 @@ namespace KyoMod
 		// cleanly — see that system's own header comment).
 		public static Asset<Effect> BubbleParticleShader;
 
+		// Compiled from docs/Shaders/BubbleAuraRing.fx — mesh-based (own VertexShader + uViewProj), a
+		// marbled radial disc/ring drawn as a unit-circle fan. Powers two visuals from the same shader
+		// (see the .fx file's own header): the big bubble's halo/aura glow, and the pop shockwave ring.
+		public static Asset<Effect> BubbleAuraRingShader;
+
 		public override void Load()
 		{
 			CryingTidesUltimateKeybind = KeybindLoader.RegisterKeybind(this, "CryingTidesUltimate", "Q");
@@ -58,6 +63,7 @@ namespace KyoMod
 				BubbleSwirlShader = TryLoadShader("Effects/BubbleSwirl");
 				BubbleTrailShader = TryLoadShader("Effects/BubbleTrail");
 				BubbleParticleShader = TryLoadShader("Effects/BubbleParticle");
+				BubbleAuraRingShader = TryLoadShader("Effects/BubbleAuraRing");
 			}
 		}
 
@@ -81,6 +87,7 @@ namespace KyoMod
 			BubbleSwirlShader = null;
 			BubbleTrailShader = null;
 			BubbleParticleShader = null;
+			BubbleAuraRingShader = null;
 		}
 	}
 }

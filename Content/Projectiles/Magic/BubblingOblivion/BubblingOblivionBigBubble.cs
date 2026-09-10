@@ -30,8 +30,13 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         private const float TravelScale = 2f;
         private const int ShrinkFrames = 40;
         private const int WaitFrames = 25;
+        // Gap between the impact-star flash ending and the bloom actually starting — previously the
+        // two were locked together (Grow began the instant Wait/Flash ended), which left no room to
+        // time the grow SFX against the visual. Held at scale 0 same as the rest of Wait.
+        private const int PostFlashPause = 20;
         private const int GrowFrames = 6;
         private int growTimer;
+        private int GrowStart => ShrinkFrames + WaitFrames + PostFlashPause;
 
         // Collapse-phase dust radius — deliberately independent of the shrinking sprite's own current
         // size, since the point is dust visibly converging from further out than the bubble itself
@@ -59,6 +64,15 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         private const int TrailLength = 14;
         private const float TrailMaxWidth = 20f;
         private readonly List<Vector2> trailHistory = new();
+
+        // Slight vertical bob once fully bloomed and lingering — purely a floaty/buoyant feel, not
+        // present during Shrink/Wait/Grow so those phases stay visually stable. restCenter is the
+        // landing spot (set once in Plant()); the bob offsets from it each tick rather than
+        // accumulating, so it never drifts.
+        private const float BobAmplitude = 6f;
+        private const float BobSpeed = 0.05f;
+        private Vector2 restCenter;
+        private float bobPhase;
 
         private SoundStyle? savedNpcHitSound;
 
@@ -108,6 +122,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         {
             rotationSpeed = Main.rand.NextFloat(0.0075f, 0.00875f) * (Main.rand.NextBool() ? 1f : -1f);
             shaderSeed = Main.rand.NextFloat(100f);
+            bobPhase = Main.rand.NextFloat(MathHelper.TwoPi);
         }
 
         public override void AI()
@@ -149,19 +164,37 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 ApplyScale(0f);
                 SpawnCollapseDust(pullSpeed: 2.5f, chance: 4);
                 PulseSingularityLight();
+
+                // Grow sound plays right as the impact-star flash ("the cross") starts — timed to the
+                // same tick as PreDraw's own FlashStart check, so the sound lands on the visual cue
+                // instead of anywhere else in the hold.
+                if (growTimer == FlashStart && Main.netMode != NetmodeID.Server)
+                    SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/BubblingOblivion/BO_BubbleGrow") { PitchVariance = 0.1f, Volume = 0.7f }, Projectile.Center);
             }
-            else if (growTimer < ShrinkFrames + WaitFrames + GrowFrames)
+            else if (growTimer < GrowStart)
             {
                 growTimer++;
-                float t = (growTimer - ShrinkFrames - WaitFrames) / (float)GrowFrames;
+                // Post-flash pause: still fully collapsed, just holding a beat after the flash before
+                // the bloom actually starts — see PostFlashPause's own comment for why this exists.
+                ApplyScale(0f);
+                PulseSingularityLight();
+            }
+            else if (growTimer < GrowStart + GrowFrames)
+            {
+                growTimer++;
+                float t = (growTimer - GrowStart) / (float)GrowFrames;
                 t = t * t * (3f - 2f * t); // smoothstep ease — a little "pop" to the inflation, not linear
                 ApplyScale(MathHelper.Lerp(0f, ScaleFactor, t));
                 if (Main.rand.NextBool(2))
                     BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.AmbientParticleColor, BubblingOblivionVisuals.ParticleScale, 24);
             }
-            else if (Main.rand.NextBool(4))
+            else
             {
-                BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.AmbientParticleColor, BubblingOblivionVisuals.ParticleScale, 24);
+                // Fully bloomed and lingering — bob every tick (not gated behind the particle roll,
+                // which only fires 1/4 of ticks) so the drift itself stays smooth.
+                ApplyBob();
+                if (Main.rand.NextBool(4))
+                    BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.AmbientParticleColor, BubblingOblivionVisuals.ParticleScale, 24);
             }
 
             CheckForPop();
@@ -201,6 +234,15 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         {
             float pulse = 0.35f + 0.25f * MathF.Sin(age * 0.3f);
             Lighting.AddLight(Projectile.Center, pulse * 0.45f, pulse * 0.1f, pulse * 0.55f);
+        }
+
+        // Floaty bob for the fully-bloomed lingering bubble — offsets from restCenter (the landing
+        // spot) each tick rather than accumulating an offset onto the previous tick's position, so it
+        // can't drift over the bubble's 7-second linger.
+        private void ApplyBob()
+        {
+            float bob = MathF.Sin(age * BobSpeed + bobPhase) * BobAmplitude;
+            Projectile.Center = restCenter + new Vector2(0f, bob);
         }
 
         // Resizing width/height mid-flight doesn't happen automatically — vanilla's scale auto-resize
@@ -243,6 +285,12 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             Projectile.timeLeft = LingerTime;
             Projectile.netUpdate = true;
             trailHistory.Clear();
+            restCenter = Projectile.Center;
+
+            // Shrink begins the instant it plants, so the sound plays here rather than inside AI()'s
+            // shrink branch (which would need its own "first tick" guard).
+            if (Main.netMode != NetmodeID.Server)
+                SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/BubblingOblivion/BO_BubbleShrink") { PitchVariance = 0.1f, Volume = 0.7f }, Projectile.Center);
         }
 
         // Only regular bolts pop a planted bubble — two big bubbles never pop each other, so several can
@@ -273,8 +321,11 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             if (Main.netMode != NetmodeID.Server)
             {
                 SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/BubblingOblivion/BO_Bubble_BigPop") { PitchVariance = 0.1f, Volume = 0.7f }, Projectile.Center);
+                // Each particle picks a random stop off the full 8-color palette (RandomPopColor) rather
+                // than one flat color, so the burst as a whole spans the same color range as the
+                // shockwave ring's own marble instead of reading as a single mismatched tone.
                 for (int i = 0; i < 20; i++)
-                    BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.PopParticleColor, BubblingOblivionVisuals.ParticleScale, 30, driftSpeed: 2f);
+                    BubblingOblivionParticleSystem.SpawnInRect(Projectile.Hitbox, BubblingOblivionVisuals.RandomPopColor(), BubblingOblivionVisuals.ParticleScale, 30, driftSpeed: 2f);
 
                 // Telegraph ring: particles placed exactly on the actual pop-damage boundary
                 // (PopRadius), pushed outward, so the AoE's real extent reads clearly instead of just a
@@ -284,8 +335,16 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 {
                     float angle = MathHelper.TwoPi * i / ringPoints;
                     Vector2 dir = angle.ToRotationVector2();
-                    BubblingOblivionParticleSystem.Spawn(Projectile.Center + dir * PopRadius, dir * 3f, BubblingOblivionVisuals.PopParticleColor, BubblingOblivionVisuals.ParticleScale, 30);
+                    BubblingOblivionParticleSystem.Spawn(Projectile.Center + dir * PopRadius, dir * 3f, BubblingOblivionVisuals.RandomPopColor(), BubblingOblivionVisuals.ParticleScale, 30);
                 }
+
+                // Real shockwave mesh on top of the particle telegraph ring above — a marbled ring
+                // expanding out to the same PopRadius, so popping reads as a genuine "cast" moment
+                // instead of just a particle burst (design doc §12/§10). Purely cosmetic and per-client
+                // (matches the netMode guard this whole block is already inside), so no ai-field sync
+                // beyond the local spawn call is needed.
+                Projectile.NewProjectile(Projectile.GetSource_Death(), Projectile.Center, Vector2.Zero,
+                    ModContent.ProjectileType<BubblingOblivionPopShockwave>(), 0, 0f, Projectile.owner, PopRadius);
             }
 
             int dmg = (int)(Projectile.damage * PopDamageMultiplier);
@@ -309,6 +368,16 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             // Drawn first so it sits behind the bubble's own sprite — same trail technique as the
             // regular bolts (BubblingOblivionBolt), just wider to match this projectile's own weight.
             BubblingOblivionMeshEffects.DrawTrail(trailHistory, TrailMaxWidth * Projectile.scale, age / 60f, shaderSeed);
+
+            // Halo/aura — around the sprite, not just on it, same "hero object" treatment as the trail
+            // (design doc §12's "boundless to the sprite" reasoning). Sized off the sprite's own current
+            // scale so it grows/shrinks/vanishes together with the collapse/bloom sequence instead of
+            // staying a fixed size throughout.
+            if (Projectile.scale > 0.05f)
+            {
+                float haloRadius = BaseSize * Projectile.scale * 1.15f;
+                BubblingOblivionMeshEffects.DrawHalo(Projectile.Center, haloRadius, age / 60f, shaderSeed);
+            }
 
             Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
             Vector2 origin = new Vector2(tex.Width, tex.Height) * 0.5f;

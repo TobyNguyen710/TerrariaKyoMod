@@ -58,6 +58,27 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
                 }
             }
 
+            // Keep the held-staff visuals alive through the idle gap between autoReuse swings, not just
+            // while itemAnimation > 0. useTime (35) is longer than useAnimation (24), so there's an
+            // ~11-tick window between swings where itemAnimation is already 0 but the mouse is still held
+            // down and another swing is about to start; gating KeepAlive purely on itemAnimation let
+            // BubblingOblivionHeld's short timeLeft (3) expire during that window. When the next swing
+            // then started, vanilla resets itemAnimation (and HoldItem runs KeepAlive again) BEFORE
+            // Shoot() fires this same tick, so KeepAlive had to spawn a brand-new Held projectile whose
+            // position hadn't been updated by its own AI() yet — Shoot() read that stale, un-offset
+            // Center as the spawn point, producing an intermittent "bolt spawns slightly above the
+            // player" bug that was hard to reproduce on purpose.
+            //
+            // Gating on controlUseItem (mouse still held) rather than "item is merely selected" matters —
+            // the latter kept the staff visible even standing idle without clicking at all, which isn't
+            // what "held in hand" should mean here.
+            bool activelyUsing = player.itemAnimation > 0 || player.controlUseItem;
+            if (activelyUsing)
+            {
+                KeepAlive(player, ModContent.ProjectileType<BubblingOblivionHeld>());
+                KeepAlive(player, ModContent.ProjectileType<BubblingOblivionOrb>());
+            }
+
             if (player.itemAnimation <= 0)
             {
                 if (++comboIdleTimer >= ComboResetFrames)
@@ -69,8 +90,6 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
             }
 
             comboIdleTimer = 0;
-            KeepAlive(player, ModContent.ProjectileType<BubblingOblivionHeld>());
-            KeepAlive(player, ModContent.ProjectileType<BubblingOblivionOrb>());
         }
 
         public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)

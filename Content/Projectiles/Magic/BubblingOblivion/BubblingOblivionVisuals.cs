@@ -29,8 +29,22 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         // Unlike vanilla Dust (see that system's own header comment), these actually reproduce the
         // palette accurately — BubbleParticle.fx has no texture/base-color multiply to fight against.
         public static readonly Color AmbientParticleColor = new Color(Color6.X, Color6.Y, Color6.Z); // 78eaeb — ordinary flight/idle sparkle
-        public static readonly Color PopParticleColor = new Color(Color0.X, Color0.Y, Color0.Z);     // fc9dff — pop bursts/telegraph rings
         public static readonly Color CollapseParticleColor = new Color(Color7.X * 0.65f, Color7.Y * 0.65f, Color7.Z * 0.65f); // darkened cc30ae — shrink/collapse
+
+        private static readonly Color[] Palette =
+        {
+            new Color(Color0.X, Color0.Y, Color0.Z), new Color(Color1.X, Color1.Y, Color1.Z),
+            new Color(Color2.X, Color2.Y, Color2.Z), new Color(Color3.X, Color3.Y, Color3.Z),
+            new Color(Color4.X, Color4.Y, Color4.Z), new Color(Color5.X, Color5.Y, Color5.Z),
+            new Color(Color6.X, Color6.Y, Color6.Z), new Color(Color7.X, Color7.Y, Color7.Z),
+        };
+
+        // A single flat color can't match a marbled multi-color shockwave ring no matter which one
+        // stop is picked (tried the "strongest" stop, cc30ae — still read as mismatched, since the
+        // marble's noise rarely swings to that extreme in practice). Instead, each pop particle picks
+        // a random stop from the same 8-color palette the shockwave marbles through, so the burst as a
+        // whole spans the same color range as the ring instead of being one flat tone.
+        public static Color RandomPopColor() => Palette[Main.rand.Next(Palette.Length)];
 
         // Shared particle draw size across every Bubble-form projectile — a single source of truth so
         // the bolts and the big bubble's particles read as the same size, instead of each projectile
