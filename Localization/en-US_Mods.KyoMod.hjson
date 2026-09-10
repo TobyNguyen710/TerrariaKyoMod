@@ -115,6 +115,15 @@ Items: {
 			Every 3rd shot conjures a lingering bubble that can be popped for bonus damage
 			'''
 	}
+
+	BubblingOblivionPostEoC: {
+		DisplayName: Bubbling Oblivion (EoC)
+		Tooltip:
+			'''
+			A staff that churns with restless, oblivious foam
+			Every 3rd shot conjures a lingering bubble that can be popped for bonus damage
+			'''
+	}
 }
 
 Projectiles: {

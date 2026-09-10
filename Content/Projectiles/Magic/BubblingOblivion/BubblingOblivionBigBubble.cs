@@ -43,6 +43,21 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         // (a gravity-well read), not just tracking the sprite's shrinking edge.
         private const float CollapseDustRadius = 90f;
 
+        // Gameplay-visible enemy suck-in, not just the cosmetic collapse dust — a genuine gravity-well
+        // pull reinforcing the black-hole read (see design doc's "how does this feel" discussion). Runs
+        // the whole Shrink+Wait window (through FlashEnd), not just Shrink, per explicit user direction:
+        // "even though our collapse/shrink time is short... make the suck effect last until the wait
+        // time finishes." Deliberately weak — "only a weak suck tho since we are not in the void/black
+        // hole form yet" — this is Bubble form foreshadowing Void form, not Void form itself.
+        private const float SuckRadius = 220f;
+        private const float SuckStrength = 0.1f;
+        private const float SuckMaxSpeed = 2.35f;
+        // A tiny direct position nudge alongside the velocity pull above — many grounded NPCs overwrite
+        // their own velocity every tick in their AI (walking toward/away from the player), which fought
+        // the velocity-only pull and made it read as basically nonexistent for those enemies. This can't
+        // be overwritten the same way.
+        private const float SuckPositionNudge = 0.15f;
+
         // A cross-shaped "hit spark" flash (BubblingOblivionMeshEffects.DrawImpactStar) plays over the
         // last FlashFrames ticks of the Wait phase, ending exactly as Grow begins — punctuates the
         // moment right before the bloom instead of the bloom just starting with no warning.
@@ -123,6 +138,13 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             rotationSpeed = Main.rand.NextFloat(0.0075f, 0.00875f) * (Main.rand.NextBool() ? 1f : -1f);
             shaderSeed = Main.rand.NextFloat(100f);
             bobPhase = Main.rand.NextFloat(MathHelper.TwoPi);
+
+            // Overrides the item's own knockBack (2, shared with the regular bolts) down to a lighter
+            // value specifically for the lingering bubble's ordinary contact damage — balance call: a
+            // stationary AoE this weapon leans on wants enemies to stick around near it rather than get
+            // scattered away on every tick of contact, which would work against both the eventual pop
+            // and the collapse phase's own suck-in pulling them back in.
+            Projectile.knockBack = 1f;
         }
 
         public override void AI()
@@ -155,6 +177,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 t = t * t * (3f - 2f * t); // smoothstep ease
                 ApplyScale(MathHelper.Lerp(TravelScale, 0f, t));
                 SpawnCollapseDust(pullSpeed: 5f, chance: 2);
+                PullNearbyEnemies();
             }
             else if (growTimer < ShrinkFrames + WaitFrames)
             {
@@ -164,6 +187,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 ApplyScale(0f);
                 SpawnCollapseDust(pullSpeed: 2.5f, chance: 4);
                 PulseSingularityLight();
+                PullNearbyEnemies();
 
                 // Grow sound plays right as the impact-star flash ("the cross") starts — timed to the
                 // same tick as PreDraw's own FlashStart check, so the sound lands on the visual cue
@@ -225,6 +249,42 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             // read as being pulled in, not drifting.
             int lifetime = (int)(CollapseDustRadius / pullSpeed);
             BubblingOblivionParticleSystem.Spawn(Projectile.Center + offset, velocity, BubblingOblivionVisuals.CollapseParticleColor, BubblingOblivionVisuals.ParticleScale, lifetime, drag: 1f);
+        }
+
+        // Gameplay-visible gravity-well pull on nearby non-boss enemies during Shrink+Wait — see
+        // SuckRadius/SuckStrength's own comment for the reasoning/timing. Excludes npc.boss and
+        // anything vanilla itself already treats as boss-like for UI purposes
+        // (NPCID.Sets.ShouldBeCountedAsBoss, e.g. pre-fight Queen Slime/Deerclops-style enemies) so a
+        // weak cosmetic pull never visibly tugs at something it obviously shouldn't be able to budge.
+        private void PullNearbyEnemies()
+        {
+            foreach (NPC npc in Main.npc)
+            {
+                if (!npc.active || npc.friendly || npc.dontTakeDamage)
+                    continue;
+                if (npc.boss || NPCID.Sets.ShouldBeCountedAsBoss[npc.type])
+                    continue;
+                // Target Dummy is meant to stay fixed in place for damage testing — pulling its hitbox
+                // around defeats the point of it (a real bug report: "the suck effect move the dummy
+                // hitbox"). Not friendly/dontTakeDamage, so it wasn't already excluded above.
+                if (npc.type == NPCID.TargetDummy)
+                    continue;
+
+                Vector2 toCenter = Projectile.Center - npc.Center;
+                float distance = toCenter.Length();
+                if (distance > SuckRadius || distance < 1f)
+                    continue;
+
+                // Cap how much THIS pull contributes toward the NPC's existing velocity, rather than
+                // clamping its total velocity — an already-fast enemy (e.g. a flying one) shouldn't get
+                // forcibly slowed down just because a weak pull is also acting on it.
+                Vector2 pullDir = toCenter / distance;
+                float towardPull = Vector2.Dot(npc.velocity, pullDir);
+                if (towardPull < SuckMaxSpeed)
+                    npc.velocity += pullDir * SuckStrength;
+
+                npc.position += pullDir * SuckPositionNudge;
+            }
         }
 
         // A small pulsing light at the collapse point so the spot never reads as fully "nothing" while

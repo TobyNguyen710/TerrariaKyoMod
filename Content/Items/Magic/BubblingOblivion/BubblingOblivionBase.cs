@@ -17,7 +17,7 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
         private int comboIdleTimer = 0;
         private const int ComboResetFrames = 140; // was 120 — idle window before the combo resets
 
-        private const float ComboSpreadAngle = 8f; // degrees, combo 2's twin shots
+        private const float ComboSpreadAngle = 3f; // degrees, combo 2's twin shots
         private const int SecondBoltDelay = 6; // ~0.1s at 60 ticks/sec
 
         private int pendingBoltTimer = 0;
@@ -31,7 +31,13 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
             Item.width = Item.height = 48;
             Item.DamageType = DamageClass.Magic;
             Item.useStyle = ItemUseStyleID.Shoot;
-            Item.useAnimation = 24;
+            // Equal on purpose — no idle gap between the swing animation finishing and the next shot
+            // actually being allowed to fire. That gap used to exist (24/35) and was the root cause of
+            // an intermittent bug (BubblingOblivionHeld could expire mid-gap, causing a bolt to spawn
+            // from a stale position) worked around via HoldItem's controlUseItem gating; matching these
+            // removes the gap itself rather than just papering over it, and makes the swing motion read
+            // as one swing per shot instead of snappier-than-the-actual-fire-rate.
+            Item.useAnimation = 35;
             Item.useTime = 35;
             Item.useTurn = true;
             Item.noMelee = true;
