@@ -49,6 +49,12 @@ namespace KyoMod
 		// (see the .fx file's own header): the big bubble's halo/aura glow, and the pop shockwave ring.
 		public static Asset<Effect> BubbleAuraRingShader;
 
+		// Compiled from docs/Shaders/VoidBlackHole.fx — mesh-based (own VertexShader + uViewProj), same
+		// unit-circle-fan structure as BubbleAuraRingShader but for Void form's redesigned ultimate: a
+		// black hole appearing at the cursor on Bubble->Void switch. Solid black core + a cyan-shades
+		// (57ffff and shades) marbled accretion disk, stylized rather than a literal lensing sim.
+		public static Asset<Effect> VoidBlackHoleShader;
+
 		public override void Load()
 		{
 			CryingTidesUltimateKeybind = KeybindLoader.RegisterKeybind(this, "CryingTidesUltimate", "Q");
@@ -64,6 +70,7 @@ namespace KyoMod
 				BubbleTrailShader = TryLoadShader("Effects/BubbleTrail");
 				BubbleParticleShader = TryLoadShader("Effects/BubbleParticle");
 				BubbleAuraRingShader = TryLoadShader("Effects/BubbleAuraRing");
+				VoidBlackHoleShader = TryLoadShader("Effects/VoidBlackHole");
 			}
 		}
 
@@ -88,6 +95,7 @@ namespace KyoMod
 			BubbleTrailShader = null;
 			BubbleParticleShader = null;
 			BubbleAuraRingShader = null;
+			VoidBlackHoleShader = null;
 		}
 	}
 }

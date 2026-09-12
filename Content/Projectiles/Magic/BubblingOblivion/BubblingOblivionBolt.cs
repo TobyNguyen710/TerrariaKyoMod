@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using KyoMod.Common.Players;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -25,6 +26,24 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             3 => 14,
             _ => 6,
         };
+
+        // Set post-spawn by BubblingOblivionBase.Shoot()/HoldItem() when fired while in Void form
+        // (ActiveForm == 1) — a placeholder stand-in for Void's real regular bolt (§3: "a different
+        // projectile... diamond/crystal-shaped, distorted, outline-only... pierces and flies faster"),
+        // reusing this same bolt class rather than building the real art/shader this session. Setter
+        // applies penetrate immediately since SetDefaults() has already run by the time the caller sets
+        // this (same timing caveat as BigBubble.TargetDistance).
+        private bool isVoidVariant;
+        public bool IsVoidVariant
+        {
+            get => isVoidVariant;
+            set
+            {
+                isVoidVariant = value;
+                if (value)
+                    Projectile.penetrate = -1; // pierces, unlike Bubble's regular bolt (see §3)
+            }
+        }
 
         // Independent slow spin, randomized per-instance so a volley of bubbles doesn't spin in lockstep.
         private float rotationSpeed;
@@ -66,10 +85,14 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         {
             age++;
 
-            NPC target = BubblingOblivionHoming.FindTarget(Projectile.Center);
-            if (target != null)
+            // Void's bolt doesn't home (§3: it leans on piercing + speed instead of control).
+            if (!IsVoidVariant)
             {
-                Projectile.velocity = BubblingOblivionHoming.SteerToward(Projectile.velocity, target.Center - Projectile.Center);
+                NPC target = BubblingOblivionHoming.FindTarget(Projectile.Center);
+                if (target != null)
+                {
+                    Projectile.velocity = BubblingOblivionHoming.SteerToward(Projectile.velocity, target.Center - Projectile.Center);
+                }
             }
 
             Projectile.rotation += rotationSpeed;
@@ -89,8 +112,19 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
             Texture2D tex = ModContent.Request<Texture2D>($"KyoMod/Content/Projectiles/Magic/BubblingOblivion/BubblingOblivionBubble{Variant}").Value;
             Vector2 origin = new Vector2(tex.Width, tex.Height) * 0.5f;
-            BubblingOblivionVisuals.DrawSwirl(tex, Projectile.Center - Main.screenPosition, lightColor, Projectile.rotation,
-                origin, Projectile.scale, age / 60f, shaderSeed);
+            if (IsVoidVariant)
+            {
+                // Placeholder Void look: no shader, just a dark tint on the same bubble sprite — stands
+                // in for the real "distorted diamond/crystal outline" design (§3/§4) until that's built.
+                Color voidTint = Color.Lerp(lightColor, new Color(30, 8, 45), 0.7f);
+                Main.EntitySpriteDraw(tex, Projectile.Center - Main.screenPosition, null, voidTint, Projectile.rotation,
+                    origin, Projectile.scale, SpriteEffects.None, 0);
+            }
+            else
+            {
+                BubblingOblivionVisuals.DrawSwirl(tex, Projectile.Center - Main.screenPosition, lightColor, Projectile.rotation,
+                    origin, Projectile.scale, age / 60f, shaderSeed);
+            }
             BubblingOblivionDebug.DrawHitbox(Projectile, Color.Lime * 0.4f);
             return false;
         }
@@ -104,6 +138,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
             target.HitSound = savedNpcHitSound;
+            Main.player[Projectile.owner].GetModPlayer<BubblingOblivionPlayer>().AddLiberationEnergy();
 
             if (Main.netMode == NetmodeID.Server)
                 return;

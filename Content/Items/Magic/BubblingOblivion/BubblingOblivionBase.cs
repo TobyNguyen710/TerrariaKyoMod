@@ -25,6 +25,31 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
         private Vector2 pendingVelocity;
         private int pendingDamage;
         private float pendingKnockback;
+        private bool pendingIsVoid;
+
+        // 0 = Bubble form, 1 = Void form. Switched by the ultimate itself (BubblingOblivionPlayer),
+        // not a manual toggle like CryingTides' middle-click panel — see design doc §7, "Ultimate =
+        // Form Switch." Void's own moveset is a placeholder for now (BubblingOblivionBolt.IsVoidVariant
+        // — pierces, faster, no homing, dark-tinted instead of the Bubble palette shader): the real
+        // diamond/distortion-field design (§3) is deferred to a later session, per explicit scope
+        // agreement — this session is about proving the switch mechanic itself works end-to-end.
+        public int ActiveForm = 0;
+
+        // Starts false — only PostEvilBoss+ tiers override this true (design doc §9: "PostEvilBoss:
+        // ultimate (form switch) unlocks").
+        public virtual bool HasUltimate => false;
+
+        // Stack cap shared by both Void Stacks and Bubble Stacks (design doc §5, decided this cap at 3
+        // together with the "-1 per skill use" decay, so a full bank empties over exactly 3 skill casts
+        // in the other form). Nothing generates stacks yet — that's gated behind the skills themselves,
+        // §9's PostWoF unlock, not yet built — but the ultimate's own buff-sizing logic (§7.4) needs
+        // this cap to exist now regardless of whether anything's filling the counters yet.
+        public const int MaxStacks = 3;
+
+        // Void's regular bolt "flies faster" than Bubble's per §3 — applied as a multiplier on the
+        // item's own shootSpeed rather than a separate hardcoded value, so future shootSpeed tuning
+        // carries through automatically to both forms.
+        private const float VoidBoltSpeedMultiplier = 1.5f;
 
         public override void SetDefaults()
         {
@@ -59,8 +84,10 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
                 if (pendingBoltTimer <= 0)
                 {
                     Vector2 spawnPos = FindHeldPosition(player) ?? pendingPosition;
-                    Projectile.NewProjectile(player.GetSource_ItemUse(Item), spawnPos, pendingVelocity,
+                    int boltIndex = Projectile.NewProjectile(player.GetSource_ItemUse(Item), spawnPos, pendingVelocity,
                         ModContent.ProjectileType<BubblingOblivionBolt>(), pendingDamage, pendingKnockback, player.whoAmI, 2f, 4f);
+                    if (pendingIsVoid && Main.projectile[boltIndex].ModProjectile is BubblingOblivionBolt pendingBolt)
+                        pendingBolt.IsVoidVariant = true;
                 }
             }
 
@@ -111,6 +138,10 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
             if (speed <= 0f)
                 speed = Item.shootSpeed;
 
+            bool isVoid = ActiveForm == 1;
+            if (isVoid)
+                speed *= VoidBoltSpeedMultiplier;
+
             string comboSound = Combo switch
             {
                 0 => "BO_Bubble_Combo1",
@@ -122,24 +153,32 @@ namespace KyoMod.Content.Items.Magic.BubblingOblivion
             switch (Combo)
             {
                 case 0: // combo 1: single bubble3, scaled 4x
-                    Projectile.NewProjectile(source, spawnPosition, dir * speed,
+                    int firstBoltIndex = Projectile.NewProjectile(source, spawnPosition, dir * speed,
                         ModContent.ProjectileType<BubblingOblivionBolt>(), damage, knockback, player.whoAmI, 3f, 4f);
+                    if (isVoid && Main.projectile[firstBoltIndex].ModProjectile is BubblingOblivionBolt firstBolt)
+                        firstBolt.IsVoidVariant = true;
                     break;
 
                 case 1: // combo 2: two bubble2 shots, scaled 4x, small spread, second one fires ~0.1s later
                     float spread = MathHelper.ToRadians(ComboSpreadAngle);
-                    Projectile.NewProjectile(source, spawnPosition, dir.RotatedBy(-spread) * speed,
+                    int secondBoltIndex = Projectile.NewProjectile(source, spawnPosition, dir.RotatedBy(-spread) * speed,
                         ModContent.ProjectileType<BubblingOblivionBolt>(), damage, knockback, player.whoAmI, 2f, 4f);
+                    if (isVoid && Main.projectile[secondBoltIndex].ModProjectile is BubblingOblivionBolt secondBolt)
+                        secondBolt.IsVoidVariant = true;
 
                     pendingPosition = spawnPosition;
                     pendingVelocity = dir.RotatedBy(spread) * speed;
                     pendingDamage = damage;
                     pendingKnockback = knockback;
+                    pendingIsVoid = isVoid;
                     pendingBoltTimer = SecondBoltDelay;
                     break;
 
                 default: // combo 3: big lingering bubble4, scaled 4x — travels to a snapshot of the
-                         // cursor's world position at cast time, instead of a fixed distance.
+                         // cursor's world position at cast time, instead of a fixed distance. Fires
+                         // the same big bubble regardless of form for now — Void's own "distortion
+                         // field" combo-3 (§3) isn't designed yet, deliberately deferred alongside its
+                         // real moveset (see ActiveForm's own comment above).
                     int bigIndex = Projectile.NewProjectile(source, spawnPosition, dir * speed,
                         ModContent.ProjectileType<BubblingOblivionBigBubble>(), damage, knockback, player.whoAmI);
                     if (Main.projectile[bigIndex].ModProjectile is BubblingOblivionBigBubble bigBubble)

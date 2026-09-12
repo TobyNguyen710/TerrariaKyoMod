@@ -124,6 +124,19 @@ Items: {
 			Every 3rd shot conjures a lingering bubble that can be popped for bonus damage
 			'''
 	}
+
+	BubblingOblivionPostEvilBoss: {
+		DisplayName: Bubbling Oblivion (Evil)
+		Tooltip:
+			'''
+			A staff that churns with restless, oblivious foam
+			Every 3rd shot conjures a lingering bubble that can be popped for bonus damage
+			Hits build Liberation Energy, up to 60
+			At 60 Liberation Energy, press [Ultimate] key to switch between Bubble and Void forms
+			[Bubble->Void] Summons a black hole at the cursor that damages nearby enemies, then explodes for 10x damage
+			[Void->Bubble] Unleashes a burst of bubbles
+			'''
+	}
 }
 
 Projectiles: {
@@ -147,6 +160,8 @@ Projectiles: {
 	BubblingOblivionBigBubble.DisplayName: Bubbling Oblivion Big Bubble
 	BubblingOblivionHeld.DisplayName: Bubbling Oblivion Held
 	BubblingOblivionPopShockwave.DisplayName: Bubbling Oblivion Pop Shockwave
+	BubblingOblivionVoidBlackHole.DisplayName: Void Black Hole
+	BubblingOblivionVoidField.DisplayName: Void Field
 }
 
 Buffs: {
@@ -163,6 +178,11 @@ Buffs: {
 	CryingTidesSkillCooldown: {
 		DisplayName: Crying Tides Skill Cooldown
 		Description: Mods.KyoMod.Buffs.CryingTidesSkillCooldown.Description
+	}
+
+	BubblingOblivionFormBuff: {
+		DisplayName: Form Resonance
+		Description: Empowered by what you banked in your other form
 	}
 }
 

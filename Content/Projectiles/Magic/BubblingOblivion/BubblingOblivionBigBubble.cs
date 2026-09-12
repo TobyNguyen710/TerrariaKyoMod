@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KyoMod.Common.Players;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -331,6 +332,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
             target.HitSound = savedNpcHitSound;
+            Main.player[Projectile.owner].GetModPlayer<BubblingOblivionPlayer>().AddLiberationEnergy();
 
             if (Main.netMode == NetmodeID.Server)
                 return;
@@ -418,6 +420,11 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 int dir = npc.Center.X >= Projectile.Center.X ? 1 : -1;
                 bool crit = Main.rand.Next(100) < Owner.GetCritChance(DamageClass.Magic);
                 Owner.ApplyDamageToNPC(npc, dmg, 0f, dir, crit);
+
+                // Pop's damage is applied manually (Owner.ApplyDamageToNPC), not via the normal
+                // projectile-collision path, so it never reaches OnHitNPC's own energy-gain call above —
+                // added here explicitly instead.
+                Owner.GetModPlayer<BubblingOblivionPlayer>().AddLiberationEnergy();
             }
 
             Projectile.Kill();
