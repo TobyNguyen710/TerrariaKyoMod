@@ -2,4 +2,10 @@ obj/
 bin/
 *.user
 .vs/
-docs/
+# docs/ stays local (design docs are working notes), EXCEPT the shader sources — the .fx files are
+# real source, and only their compiled .xnb output was being tracked. Git can't re-include a path
+# under an excluded directory, so each level is opened up explicitly before narrowing again.
+docs/*
+!docs/Shaders/
+docs/Shaders/*
+!docs/Shaders/*.fx
