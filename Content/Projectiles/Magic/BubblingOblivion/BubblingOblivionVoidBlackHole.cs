@@ -52,7 +52,15 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
         private const float CollapseDustRadius = 150f;
 
+        // Floaty bob, same idea as BigBubble's — but applied only to where it's DRAWN, never to
+        // Projectile.Center, since the field spawns at that centre and the handoff has to land exactly
+        // where the black hole appeared to be. Amplitude is larger than BigBubble's to stay visible at
+        // this much bigger draw size.
+        private const float BobAmplitude = 6.5f;
+        private const float BobSpeed = 0.032f; // ~3.3s per cycle, slower than BigBubble's 2.1s
+
         private float shaderSeed;
+        private float bobPhase;
         private int age;
 
         private Player Owner => Main.player[Projectile.owner];
@@ -74,6 +82,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         public override void OnSpawn(IEntitySource source)
         {
             shaderSeed = Main.rand.NextFloat(100f);
+            bobPhase = Main.rand.NextFloat(MathHelper.TwoPi); // random phase, so repeat casts aren't in lockstep
 
             // Purpose-made ultimate sound, so it's played straight — no pitch shifting the way the
             // borrowed BigPop placeholder needed. Deliberately specific to the Bubble->Void direction:
@@ -182,16 +191,29 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 scale = 1f - t * t * (3f - 2f * t); // eases into the collapse, then drops away fast
             }
 
+            // The bob damps to zero across the collapse, so the visual converges back onto the true
+            // centre exactly as the field opens there. Without that it would hand off from a bobbed
+            // position to an unbobbed one and visibly jump — which would undercut the whole point of
+            // the collapse reading as one object surviving rather than two effects swapping over.
+            float bobDamp = age < CollapseStart
+                ? 1f
+                : 1f - MathHelper.Clamp((age - CollapseStart) / (float)CollapseFrames, 0f, 1f);
+            Vector2 drawPos = Projectile.Center
+                + new Vector2(0f, MathF.Sin(age * BobSpeed + bobPhase) * BobAmplitude * bobDamp);
+
             if (scale > 0.01f)
             {
-                VoidVisuals.DrawBlackHole(Projectile.Center, LingerRadius * MeshScale * scale,
+                VoidVisuals.DrawBlackHole(drawPos, LingerRadius * MeshScale * scale,
                     Shadow01, DiskOuter, age / 60f, shaderSeed, opacity: 1f);
             }
 
             if (age >= FlashStart)
             {
                 float flashProgress = MathHelper.Clamp((age - FlashStart) / (float)FlashFrames, 0f, 1f);
-                BubblingOblivionMeshEffects.DrawImpactStar(Projectile.Center, flashProgress);
+                // Bigger and on Void's own palette rather than BigBubble's Bubble-era violet — this is
+                // the ultimate's payoff moment, not a combo finisher (design doc §15).
+                BubblingOblivionMeshEffects.DrawImpactStar(Projectile.Center, flashProgress,
+                    scale: 2.4f, tint: new Color(VoidVisuals.Color2));
             }
 
             BubblingOblivionDebug.DrawHitbox(Projectile, Color.Cyan * 0.4f);

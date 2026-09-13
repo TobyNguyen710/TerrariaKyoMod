@@ -161,10 +161,17 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             DrawAuraDisc(worldCenter, maxRadius, ringRadius01: progress, ringWidth01: 0.12f, ageSeconds, seed, alpha);
         }
 
-        private const int ImpactStarSpikes = 4;
+        // Four long primary spikes on the axes, plus four short diagonal ones. The diagonals matter more
+        // than they look: four spikes alone read as a cross or (with any width on them at all) a clover,
+        // whereas the long/short alternation is what actually says "star flare".
+        private const int ImpactStarSpikes = 8;
         private const float ImpactStarLength = 70f;
-        private const float ImpactStarWidth = 15f; // peak width at the bulge, not a uniform thickness
-        private const int ImpactStarSegments = 14;
+        private const float ImpactStarWidth = 9f;  // peak width at the bulge, not a uniform thickness
+        private const float SecondarySpikeLength = 0.36f; // diagonals, as a fraction of the primaries
+        private const float SecondarySpikeWidth = 0.6f;
+        private const float ImpactStarCoreRadius = 9f;    // bright hotspot where the spikes meet
+        private const int ImpactStarCoreSegments = 16;
+        private const int ImpactStarSegments = 16;
         private static readonly Color ImpactStarColor = Color.Lerp(Color.White, new Color(178, 102, 255), 0.55f);
 
         // Sparkle/star-flare width profile: pinched to ~0 right at the center, rising fast to a bulge
@@ -172,16 +179,22 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         // rectangle. Same normalized-power-curve trick as SlashArcEffect.ThicknessAt (small P = fast
         // rise, larger Q = long slow taper), just with very different exponents for a very different
         // silhouette.
-        private const float SpikeShapeP = 0.35f;
-        private const float SpikeShapeQ = 2.5f;
+        //
+        // Retuned from P=0.35/Q=2.5, which read as a four-leaf clover rather than a star: that profile
+        // peaked at t=0.12 (only ~8px out) at a full 15px wide, and was still ~13px wide at t=0.25, so
+        // the inner third of every spike was about as wide as it was long — four fat lobes meeting at a
+        // point. A sparkle needs a far higher aspect ratio: the bulge sits closer in, is narrower, and
+        // the taper runs out into a long hairline rather than a rounded petal.
+        private const float SpikeShapeP = 0.22f;
+        private const float SpikeShapeQ = 3.2f;
         private static readonly float SpikePeakT = SpikeShapeP / (SpikeShapeP + SpikeShapeQ);
         private static readonly float SpikePeakVal = MathF.Pow(SpikePeakT, SpikeShapeP) * MathF.Pow(1f - SpikePeakT, SpikeShapeQ);
 
-        private static float SpikeWidthAt(float t)
+        private static float SpikeWidthAt(float t, float maxWidth)
         {
             float raw = MathF.Pow(MathHelper.Clamp(t, 0.0001f, 1f), SpikeShapeP) * MathF.Pow(1f - t, SpikeShapeQ);
             float normalized = SpikePeakVal > 0f ? raw / SpikePeakVal : 0f;
-            return ImpactStarWidth * normalized;
+            return maxWidth * normalized;
         }
 
         // Cached rather than constructed per-draw — a plain untextured vertex-colored effect is all
@@ -209,17 +222,26 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         // across the flash's own short lifetime (the caller owns the timing/duration). Each spike is
         // an actual tapered ribbon mesh (SpikeWidthAt), not a stretched rectangle — a uniform-width
         // quad reads as a plus sign, not a sparkle/star flare.
-        public static void DrawImpactStar(Vector2 worldCenter, float progress)
+        // `scale` and `tint` let a caller size/colour its own flash without disturbing anyone else's —
+        // the defaults are BigBubble's original values, so its flash is unchanged in size and colour.
+        // The SHAPE change is shared on purpose: the old profile read as a clover for every caller, so
+        // that was a bug in the silhouette rather than a per-caller preference.
+        public static void DrawImpactStar(Vector2 worldCenter, float progress, float scale = 1f, Color? tint = null)
         {
             GraphicsDevice device = Main.spriteBatch.GraphicsDevice;
             Vector2 screenCenter = worldCenter - Main.screenPosition;
 
             float lengthT = 1f - (1f - progress) * (1f - progress); // ease-out: shoots out fast, then holds
-            float length = ImpactStarLength * lengthT;
+            float length = ImpactStarLength * scale * lengthT;
+            float width = ImpactStarWidth * scale;
             float alpha = 1f - progress * progress; // fades slowly at first, quickly near the end
-            Color color = ImpactStarColor * alpha;
+            Color color = (tint ?? ImpactStarColor) * alpha;
+            // The centre blows out brighter than the arms — a real flare is hottest where it originates,
+            // and it also hides the seam where eight spikes all meet at a point.
+            Color coreColor = Color.Lerp(tint ?? ImpactStarColor, Color.White, 0.65f) * alpha;
 
             var verts = new VertexPositionColor[(ImpactStarSegments + 1) * 2];
+            var coreVerts = new VertexPositionColor[ImpactStarCoreSegments * 3];
 
             Main.spriteBatch.End();
 
@@ -234,6 +256,11 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
             for (int spike = 0; spike < ImpactStarSpikes; spike++)
             {
+                // Even spikes land on the axes (the long primaries), odd ones on the diagonals (short).
+                bool primary = spike % 2 == 0;
+                float spikeLength = primary ? length : length * SecondarySpikeLength;
+                float spikeWidth = primary ? width : width * SecondarySpikeWidth;
+
                 float angle = MathHelper.TwoPi * spike / ImpactStarSpikes;
                 Vector2 direction = angle.ToRotationVector2();
                 Vector2 normal = new Vector2(-direction.Y, direction.X);
@@ -241,8 +268,8 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 for (int i = 0; i <= ImpactStarSegments; i++)
                 {
                     float t = i / (float)ImpactStarSegments;
-                    float halfWidth = SpikeWidthAt(t) * 0.5f;
-                    Vector2 along = screenCenter + direction * (length * t);
+                    float halfWidth = SpikeWidthAt(t, spikeWidth) * 0.5f;
+                    Vector2 along = screenCenter + direction * (spikeLength * t);
 
                     verts[i * 2]     = new VertexPositionColor(new Vector3(along + normal * halfWidth, 0f), color);
                     verts[i * 2 + 1] = new VertexPositionColor(new Vector3(along - normal * halfWidth, 0f), color);
@@ -253,6 +280,26 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                     pass.Apply();
                     device.DrawUserPrimitives(PrimitiveType.TriangleStrip, verts, 0, verts.Length - 2);
                 }
+            }
+
+            // Core hotspot: a small disc that's bright at the centre and transparent at its rim, so it
+            // reads as a glow rather than a drawn circle.
+            float coreRadius = ImpactStarCoreRadius * scale * lengthT;
+            Color coreEdge = coreColor * 0f;
+            for (int i = 0; i < ImpactStarCoreSegments; i++)
+            {
+                Vector2 d0 = (MathHelper.TwoPi * i / ImpactStarCoreSegments).ToRotationVector2();
+                Vector2 d1 = (MathHelper.TwoPi * (i + 1) / ImpactStarCoreSegments).ToRotationVector2();
+
+                coreVerts[i * 3]     = new VertexPositionColor(new Vector3(screenCenter, 0f), coreColor);
+                coreVerts[i * 3 + 1] = new VertexPositionColor(new Vector3(screenCenter + d0 * coreRadius, 0f), coreEdge);
+                coreVerts[i * 3 + 2] = new VertexPositionColor(new Vector3(screenCenter + d1 * coreRadius, 0f), coreEdge);
+            }
+
+            foreach (EffectPass pass in effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                device.DrawUserPrimitives(PrimitiveType.TriangleList, coreVerts, 0, ImpactStarCoreSegments);
             }
 
             device.RasterizerState = savedRasterizer;

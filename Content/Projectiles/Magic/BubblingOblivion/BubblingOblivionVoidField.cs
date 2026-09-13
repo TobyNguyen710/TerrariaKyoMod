@@ -43,7 +43,23 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
         private const int CoreGrowFrames = 22;     // the "pops back up" beat — the core re-emerging
 
+        // The core's breathing cycle (see CoreBreath): pulled tight while a sweep charges, thrown wide
+        // as it releases.
+        private const float InhaleScale = 0.58f;
+        private const float ExhalePeakScale = 1.5f;
+        private const int ExhaleFrames = 48;       // 0.8s to settle back after the punch. The snap outward
+                                                   // is instant, so this is purely the recovery: a longer
+                                                   // settle reads as the core slowly relaxing rather than
+                                                   // rubber-banding straight back to rest
+
+        // Floaty bob for the core, same idea as BigBubble's — but applied only to where the core is
+        // DRAWN, never to Projectile.Center. The border, the pulse spawn point and the field's whole
+        // geometry key off that centre, and none of them should wobble just because the core does.
+        private const float CoreBobAmplitude = 4.5f;
+        private const float CoreBobSpeed = 0.032f; // ~3.3s per cycle, slower than BigBubble's 2.1s
+
         private float shaderSeed;
+        private float bobPhase;
         private int age;
 
         public override void SetDefaults()
@@ -62,6 +78,7 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         {
             Projectile.velocity = Vector2.Zero;
             shaderSeed = Main.rand.NextFloat(100f);
+            bobPhase = Main.rand.NextFloat(MathHelper.TwoPi); // random phase, so repeat casts aren't in lockstep
 
             // Fire the opening sweep immediately — this is the ultimate's payoff hit, so it must land on
             // the same frame the black hole finishes collapsing, not a pulse interval later.
@@ -76,9 +93,14 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             // Telegraph: the sound leads the sweep by PulseWindup, so it's a warning the pulse is coming
             // rather than a noise confirming it already hit. The opening 10x sweep deliberately has no
             // windup (it fires the instant the field forms) and no cue of its own, since BO_Ult1 is still
-            // playing over it. The trailing condition suppresses a warning that the field wouldn't live
-            // long enough to pay off.
-            if (age % PulseInterval == PulseInterval - PulseWindup && age + PulseWindup < Lifetime
+            // playing over it.
+            //
+            // The bound is <= Lifetime, not <, specifically so the FINAL pulse still gets its warning.
+            // The final pulse lands on the field's very last tick, which an exclusive bound skipped —
+            // leaving exactly one unannounced sweep, and the most punishing one to be surprised by since
+            // the player has by then learned every pulse is telegraphed. The sweep itself is its own
+            // projectile, so it survives and completes normally even though the field dies that tick.
+            if (age % PulseInterval == PulseInterval - PulseWindup && age + PulseWindup <= Lifetime
                 && Main.netMode != NetmodeID.Server)
             {
                 SoundEngine.PlaySound(new SoundStyle("KyoMod/Sounds/BubblingOblivion/BO_VoidFieldPulse") { Volume = 0.7f }, Projectile.Center);
@@ -89,6 +111,53 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
 
             float pulse = 0.35f + 0.25f * MathF.Sin(age * 0.25f);
             Lighting.AddLight(Projectile.Center, pulse * 0.25f, pulse * 0.18f, pulse * 0.55f);
+        }
+
+        // 0 when no sweep is imminent, ramping 0 -> 1 across the windup window just before one fires.
+        // Deliberately shared by the audio cue and the visual telegraph, computing "will a sweep actually
+        // fire?" the same way for both — if those two conditions were written separately they could
+        // disagree, and a field that flashes a warning without firing (or fires without warning) is worse
+        // than having no telegraph at all.
+        private float WindupProgress()
+        {
+            if (age <= 0)
+                return 0f;
+
+            int intoCycle = age % PulseInterval;
+            int windupStart = PulseInterval - PulseWindup;
+            if (intoCycle < windupStart)
+                return 0f;
+
+            if (age + (PulseInterval - intoCycle) > Lifetime)
+                return 0f; // the field won't live long enough to fire this one
+
+            return (intoCycle - windupStart) / (float)PulseWindup;
+        }
+
+        // Size multiplier for the core, breathing in time with the pulse cycle: it draws INWARD as the
+        // sweep charges, then punches outward as the sweep releases. Shrinking during the windup (rather
+        // than swelling) is what makes it read as an inhale — the core gathering itself in, with the
+        // converging ring closing on it at the same time — so the release genuinely lands as an exhale.
+        private float CoreBreath()
+        {
+            if (age <= 0)
+                return 1f;
+
+            // Exhale: for a short window right after a sweep fires, the core is thrown wide and settles.
+            int intoCycle = age % PulseInterval;
+            if (intoCycle < ExhaleFrames)
+            {
+                float t = intoCycle / (float)ExhaleFrames;
+                return MathHelper.Lerp(ExhalePeakScale, 1f, t * t * (3f - 2f * t));
+            }
+
+            // Inhale: pulled tight as the next sweep charges. WindupProgress() already returns 0 when no
+            // sweep is actually coming, so the core simply rests instead of inhaling toward nothing.
+            float windupT = WindupProgress();
+            if (windupT > 0f)
+                return MathHelper.Lerp(1f, InhaleScale, windupT * windupT);
+
+            return 1f;
         }
 
         private void SpawnPulse(float damageMultiplier)
@@ -123,10 +192,30 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             VoidVisuals.DrawDiamondRing(Projectile.Center, FieldRadius, 13f, new Color(VoidVisuals.Color0) * borderAlpha);
             VoidVisuals.DrawDiamondRing(Projectile.Center, FieldRadius, 4.5f, new Color(VoidVisuals.Color2) * (borderAlpha * 0.9f));
 
+            // Windup telegraph. The 1.4s warning used to be sound only, which is unfair for a damaging
+            // ring — with audio down, or in a noisy fight, there was no warning at all.
+            //
+            // Shown as a thin ring CONVERGING on the core, i.e. the exact inverse of the sweep that
+            // follows: an inhale before the exhale. Reusing the diamond keeps it in the same visual
+            // language rather than inventing a new symbol, and the opposite direction of travel (plus a
+            // much thinner, dimmer band) is what keeps it from being mistaken for the sweep itself.
+            float windupT = WindupProgress();
+            if (windupT > 0f)
+            {
+                float convergeRadius = FieldRadius * (1f - windupT * windupT); // accelerates inward
+                float convergeAlpha = windupT * fadeOut * 0.9f;                // and brightens as it closes
+                VoidVisuals.DrawDiamondRing(Projectile.Center, convergeRadius, 6f,
+                    new Color(VoidVisuals.Color2) * convergeAlpha);
+            }
+
             // The miniature black hole at the centre — the same object that collapsed, growing back in.
+            // It also breathes with the pulse cycle (see CoreBreath), so the charge reads even for a
+            // player watching the core rather than the border.
             float growT = MathHelper.Clamp(age / (float)CoreGrowFrames, 0f, 1f);
             growT = growT * growT * (3f - 2f * growT);
-            VoidVisuals.DrawBlackHole(Projectile.Center, CoreMeshRadius * growT, CoreShadow01,
+            Vector2 coreDrawPos = Projectile.Center
+                + new Vector2(0f, MathF.Sin(age * CoreBobSpeed + bobPhase) * CoreBobAmplitude);
+            VoidVisuals.DrawBlackHole(coreDrawPos, CoreMeshRadius * growT * CoreBreath(), CoreShadow01,
                 CoreDiskOuter, age / 60f, shaderSeed, fadeOut);
 
             BubblingOblivionDebug.DrawHitbox(Projectile, Color.Purple * 0.3f);
