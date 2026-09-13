@@ -103,9 +103,15 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             // Grows in from nothing right as it appears, holds near full size through the linger window.
             float growT = MathHelper.Clamp(progress / 0.15f, 0f, 1f);
             growT = growT * growT * (3f - 2f * growT);
-            float radius = LingerRadius * 2.2f * growT;
+            // The shadow is only a small fraction of the mesh now: the lensed disk reaches ~7 shadow
+            // radii sideways, so the mesh has to be large enough to contain that whole span (0.12 * 7
+            // = 0.84 of the mesh, just inside its rim) or the disk's long horizontal streaks get cut
+            // flat against the boundary. Mesh radius is scaled up to keep the shadow itself a sensible
+            // on-screen size despite being a small fraction of that mesh.
+            float radius = LingerRadius * 6f * growT;
 
-            VoidVisuals.DrawBlackHole(Projectile.Center, radius, coreRadius01: 0.45f, age / 60f, shaderSeed, opacity: 1f);
+            VoidVisuals.DrawBlackHole(Projectile.Center, radius, shadowRadius01: 0.12f,
+                diskOuterInShadowRadii: 7f, age / 60f, shaderSeed, opacity: 1f);
             BubblingOblivionDebug.DrawHitbox(Projectile, Color.Cyan * 0.4f);
             return false;
         }
