@@ -162,6 +162,7 @@ Projectiles: {
 	BubblingOblivionPopShockwave.DisplayName: Bubbling Oblivion Pop Shockwave
 	BubblingOblivionVoidBlackHole.DisplayName: Void Black Hole
 	BubblingOblivionVoidField.DisplayName: Void Field
+	BubblingOblivionVoidPulse.DisplayName: Void Pulse
 }
 
 Buffs: {
@@ -183,6 +184,11 @@ Buffs: {
 	BubblingOblivionFormBuff: {
 		DisplayName: Form Resonance
 		Description: Empowered by what you banked in your other form
+	}
+
+	VoidCollapse: {
+		DisplayName: Void Collapse
+		Description: Collapsing inward; losing health over time
 	}
 }
 

@@ -128,19 +128,20 @@ float DiskFilaments(float r, float xi, float rIn, float t, float seed)
     float n3 = ValueNoise(ring * 13.0 + float2(lr * 21.0 + seed * 2.3, lr * 6.0));
     float fb = n1 * 0.50 + n2 * 0.32 + n3 * 0.18;
 
+    // Low floor and a sharp ridge power on purpose: the gaps between threads need to go genuinely dark
+    // for the bright ones to read as blazing rather than as a uniform glowing sheet.
     float ridge = 1.0 - abs(fb * 2.0 - 1.0);
-    return 0.28 + 1.30 * pow(Clamp01(ridge), 2.0);
+    return 0.14 + 1.55 * pow(Clamp01(ridge), 2.6);
 }
 
-// Temperature ramp: black -> dark ember -> deep -> mid -> hottest. Starts at true black so empty space
-// contributes nothing, and saturates toward the highlight shade so the brightest cores blow out to
-// near-white exactly like the reference's do.
+// Temperature ramp, picking only the HUE for a given intensity — the brightness itself is applied
+// separately by multiplying through by the raw intensity (see the composite at the end). No black stop
+// is needed at the bottom any more: that multiply takes faint material to zero on its own.
 float3 Ramp(float t)
 {
-    float3 c = lerp(float3(0.0, 0.0, 0.0), uColor3, Clamp01(t / 0.12));
-    c = lerp(c, uColor1, Clamp01((t - 0.12) / 0.28));
-    c = lerp(c, uColor0, Clamp01((t - 0.40) / 0.30));
-    c = lerp(c, uColor2, Clamp01((t - 0.70) / 0.30));
+    float3 c = lerp(uColor3, uColor1, Clamp01(t / 0.35));
+    c = lerp(c, uColor0, Clamp01((t - 0.35) / 0.30));
+    c = lerp(c, uColor2, Clamp01((t - 0.65) / 0.35));
     return c;
 }
 
@@ -214,7 +215,8 @@ float4 PS(VSOutput input) : COLOR0
     // resolvable anyway, and skipping it buys back the instruction budget the primary needs. (It is
     // also genuinely close to a smooth Einstein ring, so a clean one isn't wrong.)
     float e0 = DiskRadial(r0, rIn, rOut) * DiskFilaments(r0, xi0, rIn, uTime, uSeed) * valid0;
-    float e1 = DiskRadial(r1, rIn, rOut) * 1.15 * valid1;
+    float e1 = DiskRadial(r1, rIn, rOut) * 0.8 * valid1; // held back: it carries no filament detail, so at
+                                                          // full weight it blooms into a featureless mass
 
     // Mild relativistic beaming — the side rotating toward the viewer reads brighter. Kept subtle;
     // set the 0.22 to 0 for a perfectly symmetric disk. The second image sits half a turn round the
@@ -228,8 +230,24 @@ float4 PS(VSOutput input) : COLOR0
     float q = (b - bc * 1.035) / (bc * 0.05);
     emission += exp(-q * q) * outside * 0.9;
 
-    float tone = emission / (1.0 + emission); // filmic-ish rolloff so bright cores saturate to white
-    float3 col = Ramp(tone);
+    // EXPOSURE — the master brightness dial. Emission is kept linear and UNBOUNDED here rather than
+    // being squashed into 0..1, because the colour below is multiplied by it and allowed to run past
+    // white, which is what actually makes this look like it's glowing:
+    //
+    //   dim   -> tint * small  -> dark blue, barely there
+    //   mid   -> tint * ~2     -> vivid blue (the blue channel clips first, which SATURATES the hue)
+    //   hot   -> tint * ~10    -> every channel clips, so the core goes pure white
+    //
+    // That channel-by-channel clipping is exactly why the reference's orange disk has white-hot cores
+    // (red saturates, then green, then blue). In blue it simply runs the other way — blue, then cyan,
+    // then white — which is why no extra "make it whiter" term is needed anywhere.
+    //
+    // The previous version output Ramp() at full strength no matter how faint the emission was, so
+    // intensity only ever shifted the hue and never the brightness. That's what made the whole disk
+    // read as one flat blue cloud instead of something luminous.
+    float e = emission * 3.0;
+    float tone = e / (1.0 + e);   // 0..1, used ONLY to choose the hue
+    float3 col = Ramp(tone) * e;  // brightness carried by e; clips past white where it's hot
 
     float coreAlpha = 1.0 - smoothstep(bc * 0.96, bc, b);
 
@@ -237,7 +255,7 @@ float4 PS(VSOutput input) : COLOR0
     // with a partial alpha reads as an additive glow over the sky, while the shadow's alpha of 1 with
     // black RGB punches a genuinely opaque hole. Emission in front of the shadow still draws over it,
     // because its colour is added on top rather than being masked out by the core.
-    float alphaOut = max(coreAlpha, Clamp01(tone * 0.8));
+    float alphaOut = max(coreAlpha, Clamp01(tone * 0.6));
 
     float meshFade = 1.0 - smoothstep(0.93, 1.0, length(uv)); // safety fade at the mesh's own rim
     float vis = meshFade * uOpacity * input.Color.a;
