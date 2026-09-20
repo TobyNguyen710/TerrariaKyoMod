@@ -26,7 +26,13 @@
 // gives the thin bright ring hugging the shadow. They're automatically one continuous ribbon, because
 // they're literally the same disk. Nothing here is placed by hand.
 //
+// The one optional departure from physics is uFrontBand — see the comment at `valid0`.
+//
 // Mesh built in C# (VoidVisuals.DrawBlackHole) — unit-circle fan, UV.xy is local [-1,1], pre-scale.
+// The mesh may be scaled anisotropically to give an eye-shaped silhouette; UVs stay a unit circle, so
+// the whole calculation below happens in undistorted circular space and never learns about it. That
+// separation matters: warping the radius metric IN HERE to make an ellipse was tried at length and
+// always failed, because the radius that forms the lensing is the radius that forms the silhouette.
 
 #define PI 3.14159265
 
@@ -36,6 +42,8 @@ float    uSeed;
 float    uCoreRadius;  // radius of the black shadow, in UV units
 float    uDiskOuter;   // outer radius of the accretion disk, in units of the shadow radius
 float    uOpacity;
+float    uFrontBand;   // 1 = disk's near side crosses in front of the shadow (physical); 0 = shadow
+                       // left clean, for when something else occupies it. See `valid0`.
 
 // Ramp runs uColor3 (dark ember) -> uColor1 (deep) -> uColor0 (mid/bright) -> uColor2 (hottest).
 float3   uColor0;
@@ -98,6 +106,7 @@ float DiskRadial(float r, float rIn, float rOut)
     // Kept deliberately tight. Seen nearly edge-on, the inner rim's NEAR side projects to a horizontal
     // line across the shadow, and this fade lands on only a pixel or two there, so that line reads
     // crisp rather than soft. Widening it was tried and looked worse — the crisp rim is wanted.
+    // (Only visible when uFrontBand is on.)
     float inEdge  = smoothstep(rIn, rIn * 1.30, r);
     float outEdge = 1.0 - smoothstep(rOut * 0.45, rOut, r);
     float rn   = max(r / max(rIn, 0.0001), 1.0001);
@@ -193,7 +202,16 @@ float4 PS(VSOutput input) : COLOR0
     // Inside the shadow only the NEAR side counts: a far-side crossing there sits behind the hole and
     // never reaches us, which is exactly why the shadow's upper half stays black while its lower half
     // is covered by the disk passing in front.
-    float valid0 = lerp(step(phi1, PI * 0.5), 1.0, outside);
+    //
+    // uFrontBand can switch that near-side band off, which deliberately breaks physics. It exists for
+    // the Void field's core, where the shadow is an eye's PUPIL and a bright line ruled across it reads
+    // as a scratch on the lens rather than as part of an eye.
+    //
+    // It must stay ON (1) for an ordinary black hole. There the band is what joins the left and right
+    // halves of the horizontal ribbon into one continuous streak, so culling it punches a black gap
+    // through the middle of the disk. Only turn it off when something else is going to occupy the
+    // shadow. Either way the disk outside the capture radius is untouched.
+    float valid0 = lerp(step(phi1, PI * 0.5) * uFrontBand, 1.0, outside);
 
     // --- crossing 1: the first wrap-around image (thin ring hugging the shadow) ---
     float phi2 = phi1 + PI;
