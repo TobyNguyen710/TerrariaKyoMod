@@ -33,6 +33,13 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
         private const float OpeningDamageMultiplier = 10f; // §14.3 — the ultimate's 10x IS this sweep
         private const float PulseDamageMultiplier = 0.5f;  // every later sweep
 
+        // The border isn't drawn until the opening sweep reaches it, then blazes and settles. §14.3 says
+        // the opener is what DRAWS the boundary, so it draws it — a border that simply existed from frame
+        // one made the opener just a big pulse that happened to be first. Ordinary sweeps don't do this;
+        // the boundary is created once and then stays.
+        private const int BorderRevealFrames = 8;
+        private const int BorderIgniteFrames = 75;
+
         // Core sizing follows §13.3's advice for a miniature black hole: don't just scale the big one
         // down, re-proportion it. A larger shadow fraction keeps the core readable at this size and a
         // shorter disk stops it sprawling — otherwise the thin lensing detail lands sub-pixel and
@@ -218,6 +225,30 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             gaze = Vector2.Lerp(gaze, gazeTarget, GazeSnapSpeed);
         }
 
+        // When the opening sweep reaches the border, in ticks after the field forms. The field owns this
+        // rather than the sweep telling it: the field knows exactly when it spawned the opener and how
+        // long a sweep takes to travel, so it can derive the moment instead of needing the two projectiles
+        // to talk to each other across a network boundary.
+        private static int BorderArrivalAge => BubblingOblivionVoidPulse.ExpandFrames;
+
+        // 0 until the opening sweep lands on the border, then 1. The boundary does not exist before this.
+        private float BorderReveal()
+            => MathHelper.Clamp((age - BorderArrivalAge) / (float)BorderRevealFrames, 0f, 1f);
+
+        // The flare as the opener strikes the border, decaying away over the following second or so.
+        // Scaled by the same PowerOf() the sweep uses to size itself, so the two can't disagree about how
+        // big a moment this is — and ordinary sweeps score 0 and pass without igniting anything.
+        private float BorderIgnition()
+        {
+            int since = age - BorderArrivalAge;
+            if (since < 0 || since > BorderIgniteFrames)
+                return 0f;
+
+            float power = BubblingOblivionVoidPulse.PowerOf(OpeningDamageMultiplier);
+            float t = since / (float)BorderIgniteFrames;
+            return power * (1f - t) * (1f - t); // strikes instantly, then falls away
+        }
+
         // 0 when no sweep is imminent, ramping 0 -> 1 across the windup window just before one fires.
         // Deliberately shared by the audio cue and the visual telegraph, computing "will a sweep actually
         // fire?" the same way for both — if those two conditions were written separately they could
@@ -275,9 +306,11 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
                 return;
 
             int damage = Math.Max((int)(Projectile.damage * damageMultiplier), 1);
+            // The multiplier goes across as well as the damage it produced, so the sweep can scale its own
+            // presence to match its weight instead of being told which kind of sweep it is.
             Projectile.NewProjectile(Projectile.GetSource_FromAI(), Projectile.Center, Vector2.Zero,
                 ModContent.ProjectileType<BubblingOblivionVoidPulse>(), damage, Projectile.knockBack,
-                Projectile.owner, FieldRadius);
+                Projectile.owner, FieldRadius, damageMultiplier);
         }
 
         public override bool PreDraw(ref Color lightColor)
@@ -296,10 +329,17 @@ namespace KyoMod.Content.Projectiles.Magic.BubblingOblivion
             // across a 900px span and over whatever terrain happens to be behind it.
             // Slow pulse (period ~2.6s, vs the pulses' own 3s interval) — fast enough to read as alive,
             // slow enough not to compete with the outward sweeps for attention.
+            //
+            // It is not drawn at all until the opening sweep arrives to create it, then blazes and
+            // settles — see BorderReveal/BorderIgnition. The ~0.67s before that is covered by the sweep
+            // itself being plainly visible on its way out, so nothing is ever ambiguous.
             float borderPulse = 0.55f + 0.2f * MathF.Sin(age * 0.04f);
-            float borderAlpha = borderPulse * fadeOut;
-            VoidVisuals.DrawDiamondRing(Projectile.Center, FieldRadius, 13f, new Color(VoidVisuals.Color0) * borderAlpha);
-            VoidVisuals.DrawDiamondRing(Projectile.Center, FieldRadius, 4.5f, new Color(VoidVisuals.Color2) * (borderAlpha * 0.9f));
+            float ignite = BorderIgnition();
+            float borderAlpha = borderPulse * fadeOut * BorderReveal();
+            VoidVisuals.DrawDiamondRing(Projectile.Center, FieldRadius, 13f * (1f + 0.9f * ignite),
+                new Color(VoidVisuals.Color0) * (borderAlpha * (1f + 1.2f * ignite)));
+            VoidVisuals.DrawDiamondRing(Projectile.Center, FieldRadius, 4.5f * (1f + 1.4f * ignite),
+                new Color(VoidVisuals.Color2) * (borderAlpha * 0.9f * (1f + 1.5f * ignite)));
 
             // Windup telegraph. The 1.4s warning used to be sound only, which is unfair for a damaging
             // ring — with audio down, or in a noisy fight, there was no warning at all.
